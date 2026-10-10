@@ -1,0 +1,83 @@
+// Pure helpers that turn the settings into link options, and small date and folder helpers. No Obsidian import: the date
+// formatter is passed in (the plugin gives it the moment of Obsidian), so tests can use a small stand-in.
+import type { LinkText } from './links';
+
+/** Formats an ISO date (YYYY-MM-DD) with a moment format. Returns '' for a date that does not exist. */
+export type FormatFn = (iso: string, format: string) => string;
+
+export interface LinkConfig {
+	/** Moment format of the daily note name. */
+	format: string;
+	/** Moment format of the link text after the pipe. Empty means no alias. */
+	alias: string;
+	weekly: boolean;
+	weeklyFormat: string;
+	monthly: boolean;
+	monthlyFormat: string;
+}
+
+export const FALLBACK_FORMAT = 'YYYY-MM-DD';
+export const DEFAULT_WEEKLY = 'gggg-[W]ww';
+export const DEFAULT_MONTHLY = 'YYYY-MM';
+
+/** Characters that would break a wikilink or turn it into a heading or block link. */
+const UNSAFE = /[[\]|#^\\\r\n]/u;
+
+/** True when a formatted note name can sit inside [[ ]] as it is. */
+export function safeTarget(name: string): boolean {
+	return name.trim() !== '' && !UNSAFE.test(name);
+}
+
+function oneLink(fmt: FormatFn, iso: string, format: string, alias: string): LinkText | null {
+	const name = fmt(iso, format);
+	const target = safeTarget(name) ? name : fmt(iso, FALLBACK_FORMAT);
+	if (!safeTarget(target)) return null;
+	const shown = alias.trim() === '' ? '' : fmt(iso, alias).replace(/[\]|\r\n[#^]/g, ' ').trim();
+	return { target, text: shown !== '' && shown !== target ? `[[${target}|${shown}]]` : `[[${target}]]` };
+}
+
+/** The links for one date: the daily note, then the weekly and monthly note when those are on. */
+export function buildLinksFor(fmt: FormatFn, cfg: LinkConfig): (iso: string) => LinkText[] {
+	return (iso) => {
+		const out: LinkText[] = [];
+		const daily = oneLink(fmt, iso, cfg.format, cfg.alias);
+		if (daily) out.push(daily);
+		if (cfg.weekly) {
+			const w = oneLink(fmt, iso, cfg.weeklyFormat || DEFAULT_WEEKLY, '');
+			if (w && !out.some((o) => o.target === w.target)) out.push(w);
+		}
+		if (cfg.monthly) {
+			const m = oneLink(fmt, iso, cfg.monthlyFormat || DEFAULT_MONTHLY, '');
+			if (m && !out.some((o) => o.target === m.target)) out.push(m);
+		}
+		return out;
+	};
+}
+
+/** The date n days after an ISO date (n may be negative). */
+export function addDays(iso: string, n: number): string {
+	const d = new Date(`${iso}T00:00:00Z`);
+	d.setUTCDate(d.getUTCDate() + n);
+	return d.toISOString().slice(0, 10);
+}
+
+/** The done dates that count as "just finished": from `days` days before today up to today. */
+export function recentWindow(today: string, days: number): { from: string; to: string } {
+	return { from: addDays(today, -Math.max(0, Math.floor(days))), to: today };
+}
+
+/** One folder per line. Trims, drops empty lines and the slash at the end. */
+export function splitFolders(text: string): string[] {
+	return text
+		.split('\n')
+		.map((l) => l.trim().replace(/\/+$/, ''))
+		.filter((l) => l !== '');
+}
+
+const inFolder = (path: string, folder: string): boolean => path === folder || path.startsWith(`${folder}/`);
+
+/** Folder rules: a note is used when it is in one of `only` (or `only` is empty) and in none of `ignore`. */
+export function folderAllowed(path: string, only: readonly string[], ignore: readonly string[]): boolean {
+	if (ignore.some((f) => inFolder(path, f))) return false;
+	return only.length === 0 || only.some((f) => inFolder(path, f));
+}

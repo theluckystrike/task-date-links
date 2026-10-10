@@ -1,0 +1,45 @@
+/* Styles for Task Date Links. Obsidian loads this file while the plugin is enabled. */
+.task-date-links-preview {
+	max-width: 640px;
+}
+
+.task-date-links-summary {
+	font-weight: var(--font-semibold);
+}
+
+.task-date-links-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	max-height: 50vh;
+	overflow-y: auto;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.task-date-links-where {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.task-date-links-line {
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.task-date-links-added {
+	padding: 0 var(--size-2-1);
+	border-radius: var(--radius-s);
+	background: var(--text-highlight-bg);
+	color: var(--text-normal);
+}
+
+.task-date-links-more,
+.task-date-links-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}

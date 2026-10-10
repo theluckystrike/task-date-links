@@ -1,0 +1,2 @@
+- [x] Finish the design book ✅ 2026-08-02
+- [x] Read the paper on queues ⏫ ✅ 2026-08-20

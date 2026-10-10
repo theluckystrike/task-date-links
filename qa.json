@@ -1,0 +1,93 @@
+[
+	{
+		"feature": "done-link",
+		"caption": "The Tasks plugin completes Send the invoice to Ana, and a link to today appears before the done date.",
+		"note": "Launch checklist.md",
+		"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const T = 'obsidian-tasks-plugin'; if (!app.plugins.plugins[T]?.apiV1) { await app.plugins.enablePluginAndSave(T); for (let i = 0; i < 100 && !app.plugins.plugins[T]?.apiV1; i++) await sleep(100); await sleep(800); } const ed = () => app.workspace.activeEditor.editor; const n = ed().getValue().split('\\n').findIndex((l) => l.includes('Send the invoice')); ed().setCursor({ line: n, ch: 0 }); app.commands.executeCommandById('obsidian-tasks-plugin:toggle-done'); await sleep(4500); ed().setCursor({ line: 0, ch: 0 }); await sleep(600); return 'ok'; })()",
+		"wait": 600,
+		"zoom": 0.9
+	},
+	{
+		"feature": "backlinks",
+		"caption": "The daily note lists the completed task in its backlinks.",
+		"note": "Launch checklist.md",
+		"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const T = 'obsidian-tasks-plugin'; if (!app.plugins.plugins[T]?.apiV1) { await app.plugins.enablePluginAndSave(T); for (let i = 0; i < 100 && !app.plugins.plugins[T]?.apiV1; i++) await sleep(100); await sleep(800); } const ed = () => app.workspace.activeEditor.editor; const n = ed().getValue().split('\\n').findIndex((l) => l.includes('Send the invoice')); ed().setCursor({ line: n, ch: 0 }); app.commands.executeCommandById('obsidian-tasks-plugin:toggle-done'); await sleep(4500); ed().setCursor({ line: 0, ch: 0 }); await sleep(600); await app.workspace.getLeaf(false).openFile(app.vault.getFileByPath('Task Date Links/2026-10-10.md')); const bl = app.internalPlugins.getPluginById('backlink'); await app.workspace.ensureSideLeaf('backlink', 'right', { active: true, reveal: true }); app.workspace.rightSplit.expand(); await sleep(1500); return 'ok'; })()",
+		"after": "app.workspace.rightSplit.collapse(); 'ok'",
+		"wait": 600,
+		"zoom": 0.9
+	},
+	{
+		"feature": "back-fill-preview",
+		"caption": "The preview of a back-fill: each new link is marked, and nothing is written until you select Link the dates.",
+		"note": "Old tasks.md",
+		"commands": [
+			"task-date-links:link-done-dates-note"
+		],
+		"wait": 900,
+		"after": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } return 'ok'; })()",
+		"zoom": 0.9
+	},
+	{
+		"feature": "back-fill-done",
+		"caption": "After the back-fill: the links are in the note, and the notice says how to undo.",
+		"note": "Old tasks.md",
+		"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.commands.executeCommandById('task-date-links:link-done-dates-note'); await sleep(900); document.querySelector('.task-date-links-preview button.mod-cta').click(); await sleep(1800); return 'ok'; })()",
+		"after": "(async () => { app.commands.executeCommandById('task-date-links:undo-backfill'); await new Promise((r) => setTimeout(r, 600)); return 'ok'; })()",
+		"wait": 900,
+		"zoom": 0.9
+	},
+	{
+		"feature": "settings",
+		"caption": "Settings: link on completion, the daily note format, the link text format and the reopen rule.",
+		"note": "Launch checklist.md",
+		"eval": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.plugins.plugins['task-date-links'].pro.signOut(); app.setting.open(); app.setting.openTabById('task-date-links'); await sleep(600); return 'ok'; })()",
+		"after": "app.setting.close(); 'ok'",
+		"wait": 300,
+		"zoom": 0.85
+	},
+	{
+		"feature": "pro-settings",
+		"caption": "Pro settings after sign in: more dates, weekly and monthly notes, and folder rules.",
+		"note": "Launch checklist.md",
+		"eval": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.plugins.plugins['task-date-links'].pro.opts.http = async () => ({ status: 200, json: { data: { viewer: { login: 'demo-reader' }, user: { sponsorshipForViewerAsSponsor: { isActive: true, isOneTimePayment: false, tier: { name: '$5 a month', monthlyPriceInCents: 500 } } } } } }); app.secretStorage.setSecret('task-date-links-github-token', 'gho_' + '0'.repeat(36)); await app.plugins.plugins['task-date-links'].pro.refreshNow(); await sleep(700); app.setting.open(); app.setting.openTabById('task-date-links'); await sleep(600); const c = document.querySelector('.vertical-tab-content'); c.scrollTop = c.scrollHeight; await sleep(500); return 'ok'; })()",
+		"after": "app.setting.close(); app.plugins.plugins['task-date-links'].pro.signOut(); 'ok'",
+		"wait": 300,
+		"zoom": 0.85
+	},
+	{
+		"feature": "vault-preview",
+		"caption": "Pro: the back-fill of the whole vault previews the tasks of every note before it writes.",
+		"note": "Launch checklist.md",
+		"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.plugins.plugins['task-date-links'].pro.opts.http = async () => ({ status: 200, json: { data: { viewer: { login: 'demo-reader' }, user: { sponsorshipForViewerAsSponsor: { isActive: true, isOneTimePayment: false, tier: { name: '$5 a month', monthlyPriceInCents: 500 } } } } } }); app.secretStorage.setSecret('task-date-links-github-token', 'gho_' + '0'.repeat(36)); await app.plugins.plugins['task-date-links'].pro.refreshNow(); await sleep(700); app.commands.executeCommandById('task-date-links:link-done-dates-vault'); await sleep(1200); return 'ok'; })()",
+		"after": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } app.plugins.plugins['task-date-links'].pro.signOut(); return 'ok'; })()",
+		"wait": 300,
+		"zoom": 0.9
+	},
+	{
+		"feature": "task-date-links",
+		"frames": [
+			{
+				"note": "Launch checklist.md",
+				"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const T = 'obsidian-tasks-plugin'; if (!app.plugins.plugins[T]?.apiV1) { await app.plugins.enablePluginAndSave(T); for (let i = 0; i < 100 && !app.plugins.plugins[T]?.apiV1; i++) await sleep(100); await sleep(800); } app.workspace.activeEditor.editor.setCursor({ line: 0, ch: 0 }); return 'ok'; })()",
+				"wait": 600,
+				"zoom": 0.9,
+				"hold": 2200
+			},
+			{
+				"eval": "(async () => { for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await new Promise((r) => setTimeout(r, 200)); } const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const T = 'obsidian-tasks-plugin'; if (!app.plugins.plugins[T]?.apiV1) { await app.plugins.enablePluginAndSave(T); for (let i = 0; i < 100 && !app.plugins.plugins[T]?.apiV1; i++) await sleep(100); await sleep(800); } const ed = () => app.workspace.activeEditor.editor; const n = ed().getValue().split('\\n').findIndex((l) => l.includes('Send the invoice')); ed().setCursor({ line: n, ch: 0 }); app.commands.executeCommandById('obsidian-tasks-plugin:toggle-done'); await sleep(4500); ed().setCursor({ line: 0, ch: 0 }); await sleep(600); return 'ok'; })()",
+				"wait": 300,
+				"zoom": 0.9,
+				"hold": 3200
+			},
+			{
+				"note": "Old tasks.md",
+				"commands": [
+					"task-date-links:link-done-dates-note"
+				],
+				"wait": 900,
+				"zoom": 0.9,
+				"hold": 3200
+			}
+		]
+	}
+]

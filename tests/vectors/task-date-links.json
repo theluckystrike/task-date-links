@@ -1,0 +1,594 @@
+{
+ "slug": "task-date-links",
+ "module": "task-date-links/src/links",
+ "function": "linkText",
+ "note": "args = [note text, options]. options (all optional) = {format, alias, kinds, window [from,to], weekly, monthly, range [firstLine,lastLine]}; the test builds the link text with a small date formatter (tests/fmt.ts) that follows moment for these formats: YYYY MM DD MMM and the en week gggg-[W]ww. expected = {text, changed: zero-based numbers of the lines that differ}. The link goes at the end of the description, before the first trailing field, because the Tasks plugin (DefaultTaskSerializer) reads fields from the end of the line, the block id first. Every expected value is written by hand, line by line.",
+ "cases": [
+  {
+   "name": "basic done task gets the daily link before the done date",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "done task without a done date is left alone",
+   "args": [
+    "- [x] Buy milk",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk",
+    "changed": []
+   }
+  },
+  {
+   "name": "open task is left alone",
+   "args": [
+    "- [ ] Buy milk",
+    {}
+   ],
+   "expected": {
+    "text": "- [ ] Buy milk",
+    "changed": []
+   }
+  },
+  {
+   "name": "open task with a stray done date is left alone",
+   "args": [
+    "- [ ] Buy milk ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [ ] Buy milk ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "task that already has the link is left alone (idempotent)",
+   "args": [
+    "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "link with an alias counts as linked",
+   "args": [
+    "- [x] Buy milk [[2026-10-10|today]] ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10|today]] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "link with a heading part counts as linked",
+   "args": [
+    "- [x] Buy milk [[2026-10-10#Tasks]] ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10#Tasks]] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "a link to another date does not count",
+   "args": [
+    "- [x] See [[2026-10-09]] ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] See [[2026-10-09]] [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "priority and due date stay after the link",
+   "args": [
+    "- [x] Pay rent ⏫ 📅 2026-10-12 ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Pay rent [[2026-10-10]] ⏫ 📅 2026-10-12 ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "recurrence rule stays after the link",
+   "args": [
+    "- [x] Water plants 🔁 every day 📅 2026-10-10 ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Water plants [[2026-10-10]] 🔁 every day 📅 2026-10-10 ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "Dataview inline fields in square brackets",
+   "args": [
+    "- [x] Write report [due:: 2026-10-12] [completion:: 2026-10-10]",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Write report [[2026-10-10]] [due:: 2026-10-12] [completion:: 2026-10-10]",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "Dataview inline fields in round brackets",
+   "args": [
+    "- [x] Write report (due:: 2026-10-12) (completion:: 2026-10-10)",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Write report [[2026-10-10]] (due:: 2026-10-12) (completion:: 2026-10-10)",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "block id stays at the end of the line",
+   "args": [
+    "- [x] Call Ana ✅ 2026-10-10 ^abc123",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Call Ana [[2026-10-10]] ✅ 2026-10-10 ^abc123",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "block id on a task without a done date is left alone",
+   "args": [
+    "- [x] Call Ana ^abc123",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Call Ana ^abc123",
+    "changed": []
+   }
+  },
+  {
+   "name": "fields in another order still find the done date",
+   "args": [
+    "- [x] Ship it ✅ 2026-10-10 📅 2026-10-09",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Ship it [[2026-10-10]] ✅ 2026-10-10 📅 2026-10-09",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "text after the done date means Tasks reads no field, so nothing changes",
+   "args": [
+    "- [x] Ship it ✅ 2026-10-10 #work",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Ship it ✅ 2026-10-10 #work",
+    "changed": []
+   }
+  },
+  {
+   "name": "on completion action and id fields are skipped over",
+   "args": [
+    "- [x] Ship it 🆔 abc ⛔ def 🏁 keep ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Ship it [[2026-10-10]] 🆔 abc ⛔ def 🏁 keep ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "emoji with a variation selector",
+   "args": [
+    "- [x] Ship it ✅️ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Ship it [[2026-10-10]] ✅️ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "Windows line endings stay",
+   "args": [
+    "- [x] A ✅ 2026-10-10\r\n- [x] B ✅ 2026-10-10\r\n",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] A [[2026-10-10]] ✅ 2026-10-10\r\n- [x] B [[2026-10-10]] ✅ 2026-10-10\r\n",
+    "changed": [
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "indented sub task, numbered task, star bullet and quote",
+   "args": [
+    "- [ ] Parent\n    - [x] Child ✅ 2026-10-10\n1. [x] Step ✅ 2026-10-10\n* [x] Star ✅ 2026-10-10\n> - [x] Quoted ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "- [ ] Parent\n    - [x] Child [[2026-10-10]] ✅ 2026-10-10\n1. [x] Step [[2026-10-10]] ✅ 2026-10-10\n* [x] Star [[2026-10-10]] ✅ 2026-10-10\n> - [x] Quoted [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     1,
+     2,
+     3,
+     4
+    ]
+   }
+  },
+  {
+   "name": "callout task",
+   "args": [
+    "> [!todo] Today\n> - [x] Inside ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "> [!todo] Today\n> - [x] Inside [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "fenced code and Tasks query blocks are not tasks",
+   "args": [
+    "```tasks\nnot done\n```\n\n```md\n- [x] Sample ✅ 2026-10-10\n```\n\n~~~\n- [x] Tilde ✅ 2026-10-10\n~~~\n- [x] Real ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "```tasks\nnot done\n```\n\n```md\n- [x] Sample ✅ 2026-10-10\n```\n\n~~~\n- [x] Tilde ✅ 2026-10-10\n~~~\n- [x] Real [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     11
+    ]
+   }
+  },
+  {
+   "name": "front matter is not touched",
+   "args": [
+    "---\ntitle: - [x] Not a task ✅ 2026-10-10\n---\n- [x] Real ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "---\ntitle: - [x] Not a task ✅ 2026-10-10\n---\n- [x] Real [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     3
+    ]
+   }
+  },
+  {
+   "name": "a four-backtick fence is closed only by four or more",
+   "args": [
+    "````\n```\n- [x] Inside ✅ 2026-10-10\n````\n- [x] After ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "````\n```\n- [x] Inside ✅ 2026-10-10\n````\n- [x] After [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     4
+    ]
+   }
+  },
+  {
+   "name": "alias format adds link text",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {
+     "alias": "MMM D"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10|Oct 10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily format DD-MM-YYYY",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {
+     "format": "DD-MM-YYYY"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[10-10-2026]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily format with folders",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {
+     "format": "YYYY/MM/YYYY-MM-DD"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026/10/2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "a format with a hash falls back to YYYY-MM-DD",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {
+     "format": "YYYY#MM"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "a date that does not exist gets no link",
+   "args": [
+    "- [x] Buy milk ✅ 2026-13-45",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk ✅ 2026-13-45",
+    "changed": []
+   }
+  },
+  {
+   "name": "pro: due and start dates are linked too, in date kind order",
+   "args": [
+    "- [x] Pay rent 🛫 2026-10-08 📅 2026-10-12 ✅ 2026-10-10",
+    {
+     "kinds": [
+      "done",
+      "due",
+      "start"
+     ]
+    }
+   ],
+   "expected": {
+    "text": "- [x] Pay rent [[2026-10-08]] [[2026-10-12]] [[2026-10-10]] 🛫 2026-10-08 📅 2026-10-12 ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "pro: the same day as due and done gives one link",
+   "args": [
+    "- [x] Pay rent 📅 2026-10-10 ✅ 2026-10-10",
+    {
+     "kinds": [
+      "done",
+      "due"
+     ]
+    }
+   ],
+   "expected": {
+    "text": "- [x] Pay rent [[2026-10-10]] 📅 2026-10-10 ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "pro: created and scheduled dates",
+   "args": [
+    "- [x] Plan ➕ 2026-10-01 ⏳ 2026-10-09 ✅ 2026-10-10",
+    {
+     "kinds": [
+      "done",
+      "created",
+      "scheduled"
+     ]
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[2026-10-01]] [[2026-10-09]] [[2026-10-10]] ➕ 2026-10-01 ⏳ 2026-10-09 ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "pro: weekly and monthly links follow the daily link",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10",
+    {
+     "weekly": true,
+     "monthly": true
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] [[2026-W41]] [[2026-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "pro: the weekly link is added when only the daily link exists",
+   "args": [
+    "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10",
+    {
+     "weekly": true
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] [[2026-W41]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "window: only recent done dates are linked",
+   "args": [
+    "- [x] Old ✅ 2026-09-01\n- [x] Yesterday ✅ 2026-10-09\n- [x] Today ✅ 2026-10-10\n",
+    {
+     "window": [
+      "2026-10-09",
+      "2026-10-10"
+     ]
+    }
+   ],
+   "expected": {
+    "text": "- [x] Old ✅ 2026-09-01\n- [x] Yesterday [[2026-10-09]] ✅ 2026-10-09\n- [x] Today [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "without a window every done date is linked (back-fill)",
+   "args": [
+    "- [x] Old ✅ 2026-09-01\n- [x] Today ✅ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Old [[2026-09-01]] ✅ 2026-09-01\n- [x] Today [[2026-10-10]] ✅ 2026-10-10\n",
+    "changed": [
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "selection range links only the selected lines",
+   "args": [
+    "- [x] One ✅ 2026-10-10\n- [x] Two ✅ 2026-10-10\n- [x] Three ✅ 2026-10-10\n",
+    {
+     "range": [
+      1,
+      1
+     ]
+    }
+   ],
+   "expected": {
+    "text": "- [x] One ✅ 2026-10-10\n- [x] Two [[2026-10-10]] ✅ 2026-10-10\n- [x] Three ✅ 2026-10-10\n",
+    "changed": [
+     1
+    ]
+   }
+  },
+  {
+   "name": "empty description is left alone",
+   "args": [
+    "- [x] ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "other done status characters and a cancelled task",
+   "args": [
+    "- [X] Big X ✅ 2026-10-10\n- [/] Custom ✅ 2026-10-10\n- [-] Cancelled ❌ 2026-10-10\n",
+    {}
+   ],
+   "expected": {
+    "text": "- [X] Big X [[2026-10-10]] ✅ 2026-10-10\n- [/] Custom [[2026-10-10]] ✅ 2026-10-10\n- [-] Cancelled ❌ 2026-10-10\n",
+    "changed": [
+     0,
+     1
+    ]
+   }
+  },
+  {
+   "name": "one linked and one not in the same note",
+   "args": [
+    "# Today\n\n- [x] First [[2026-10-10]] ✅ 2026-10-10\n- [x] Second ✅ 2026-10-10\n\nSome text with [x] and ✅ 2026-10-10.\n",
+    {}
+   ],
+   "expected": {
+    "text": "# Today\n\n- [x] First [[2026-10-10]] ✅ 2026-10-10\n- [x] Second [[2026-10-10]] ✅ 2026-10-10\n\nSome text with [x] and ✅ 2026-10-10.\n",
+    "changed": [
+     3
+    ]
+   }
+  },
+  {
+   "name": "description keeps tags, wiki links and bold text",
+   "args": [
+    "- [x] **Call** [[Ana]] about #budget ✅ 2026-10-10",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] **Call** [[Ana]] about #budget [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "link to a different case of the same note counts as linked",
+   "args": [
+    "- [x] Buy milk [[2026-oct-10]] ✅ 2026-10-10",
+    {
+     "format": "YYYY-[OCT]-DD"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-oct-10]] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "no trailing newline and a trailing space",
+   "args": [
+    "- [x] Buy milk ✅ 2026-10-10 ",
+    {}
+   ],
+   "expected": {
+    "text": "- [x] Buy milk [[2026-10-10]] ✅ 2026-10-10 ",
+    "changed": [
+     0
+    ]
+   }
+  }
+ ]
+}
