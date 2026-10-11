@@ -38,6 +38,7 @@
 	color: var(--text-normal);
 }
 
+.task-date-links-skipped,
 .task-date-links-more,
 .task-date-links-hint {
 	color: var(--text-muted);

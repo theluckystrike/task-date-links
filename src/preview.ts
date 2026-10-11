@@ -7,7 +7,7 @@ export interface PreviewFile {
 	changes: Change[];
 }
 
-/** Most changes the preview lists. The count in the summary is always the full number. */
+/** Most changes the preview lists. The count in the summary is always the full number, and a line under the list says how many are not shown. */
 export const PREVIEW_MAX = 40;
 
 /** Splits a changed line into the text before the new links, the new links, and the text after them. */
@@ -26,12 +26,27 @@ export function summarize(files: readonly PreviewFile[]): string {
 	return `${task} in ${files.length === 1 ? '1 note' : `${files.length} notes`} will get a link.`;
 }
 
+/** The sentence about the notes that the property `task-date-links: false` keeps out of a back-fill; '' when there are none. */
+export function skippedText(skipped: number): string {
+	if (skipped <= 0) return '';
+	return `Skipped ${skipped === 1 ? '1 note' : `${skipped} notes`} with the property "task-date-links: false".`;
+}
+
+/** The line under the list when the preview does not show every change; '' when it shows them all. */
+export function moreText(total: number): string {
+	const more = total - PREVIEW_MAX;
+	if (more <= 0) return '';
+	return `And ${more === 1 ? '1 more line' : `${more} more lines`} that this window does not show.`;
+}
+
 export class PreviewModal extends Modal {
 	constructor(
 		app: App,
 		private readonly title: string,
 		private readonly files: readonly PreviewFile[],
 		private readonly onApply: () => Promise<void>,
+		/** How many notes the property keeps out of this back-fill. */
+		private readonly skipped = 0,
 	) {
 		super(app);
 	}
@@ -41,6 +56,7 @@ export class PreviewModal extends Modal {
 		contentEl.addClass('task-date-links-preview');
 		this.setTitle(this.title);
 		contentEl.createEl('p', { text: summarize(this.files), cls: 'task-date-links-summary' });
+		if (this.skipped > 0) contentEl.createEl('p', { text: skippedText(this.skipped), cls: 'task-date-links-skipped' });
 		const list = contentEl.createDiv({ cls: 'task-date-links-list' });
 		let shown = 0;
 		for (const f of this.files) {
@@ -50,7 +66,7 @@ export class PreviewModal extends Modal {
 			}
 		}
 		const total = this.files.reduce((n, f) => n + f.changes.length, 0);
-		if (total > PREVIEW_MAX) contentEl.createEl('p', { text: `And ${total - PREVIEW_MAX} more.`, cls: 'task-date-links-more' });
+		if (total > PREVIEW_MAX) contentEl.createEl('p', { text: moreText(total), cls: 'task-date-links-more' });
 		contentEl.createEl('p', { text: 'To put the lines back, use the undo command of this plugin.', cls: 'task-date-links-hint' });
 		new Setting(contentEl)
 			.addButton((b) => b.setButtonText('Link the dates').setCta().onClick(() => void this.apply()))

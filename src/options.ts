@@ -20,6 +20,18 @@ export const FALLBACK_FORMAT = 'YYYY-MM-DD';
 export const DEFAULT_WEEKLY = 'gggg-[W]ww';
 export const DEFAULT_MONTHLY = 'YYYY-MM';
 
+/** The note property that keeps one note out of the plugin. */
+export const PROPERTY = 'task-date-links';
+
+/**
+ * True when the front matter of a note opts the note out. Only the boolean `false` does that (`task-date-links: false`, or a
+ * checkbox property that is off). The text "false" in quotes, `no`, 0, an empty value, `true` and a missing property do not.
+ * The link on completion and every back-fill ask this one function, so the two paths read the property in the same way.
+ */
+export function optedOut(frontmatter: Readonly<Record<string, unknown>> | null | undefined): boolean {
+	return frontmatter?.[PROPERTY] === false;
+}
+
 /** Characters that would break a wikilink or turn it into a heading or block link. */
 const UNSAFE = /[[\]|#^\\\r\n]/u;
 

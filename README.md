@@ -2,7 +2,7 @@
 
 Adds a real daily note link to a task when you complete it, so backlinks show what you finished each day.
 
-The Tasks plugin writes the done date as text, such as `✅ 2026-10-10`. Text is not a link, so the daily note for that day shows nothing. The Tasks maintainers closed the request as not planned in June 2026 (issue 3372, 43 reactions) and said that another plugin should do it. Task Date Links is that plugin. It is a separate plugin by a different author, and it does not read the internals of Tasks.
+The Tasks plugin writes the done date as text, such as `✅ 2026-10-10`. Text is not a link, so the daily note for that day shows nothing. The Tasks maintainers closed the request as not planned in June 2026 (issue 3372, 43 reactions) and said that another plugin should do it. Task Date Links is that plugin. It is by a different author and does not read the internals of Tasks.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/task-date-links.gif" alt="Complete a task with the Tasks plugin and a link to today appears, then the back-fill of old done tasks" width="720">
 
@@ -16,13 +16,13 @@ When the Tasks plugin writes a done date, Task Date Links adds a link to that da
 - [x] Send the invoice to Ana [[2026-10-10]] ✅ 2026-10-10 ^invoice
 ```
 
-The link goes before the fields on purpose. Tasks reads the fields from the end of the line, so a link after the done date would hide the date from Tasks. With the link before it, Tasks still reads the done date, the due date, the priority, the recurrence rule and the block id.
+The link goes before the fields on purpose. Tasks reads the fields from the end of the line, so a link after the done date would hide the date. This way, Tasks still reads every field: the dates, the priority, the recurrence rule and the block id.
 
 The plugin finds the fields with the same rules as Tasks, in the emoji format and the Dataview format. It changes nothing in a line except to add the link, keeps Windows line endings, and skips code blocks and front matter.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/done-link.png" alt="The task Send the invoice to Ana is checked and shows a link to 2026-10-10 before its done date" width="720">
 
-A recurring task works too. Tasks makes a new open copy and finishes the old one. Only the finished copy gets the link. When you uncheck a task, the plugin removes the links that it added. A link that you typed yourself stays.
+A recurring task works too. Tasks makes a new open copy and finishes the old one. Only the finished copy gets the link. When you uncheck a task, the plugin removes only a link that it added on completion in the same session, and not after you change a plugin setting, rename the note or back-fill it. A back-filled link and a link that you typed yourself stay.
 
 ### The daily note shows what you finished
 
@@ -34,7 +34,7 @@ Open the daily note and look at the Backlinks pane. Each task that you completed
 
 For old done dates, run "Link the done dates in the current note". To change only some lines, select them and run "Link the done dates in the selection".
 
-A window lists every line that would change, with each new link marked. Nothing is written until you select "Link the dates". Then "Undo the last back-fill" puts every line back. A line that you edited since stays as it is.
+A window lists up to 40 lines that would change, with each new link marked, and says how many more it does not show. Nothing is written until you select "Link the dates". Then "Undo the last back-fill" puts every line back. A line that you edited since stays as it is.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/back-fill-preview.png" alt="The preview window of a back-fill with four lines and the new links marked" width="720">
 
@@ -56,13 +56,13 @@ Turn on the start, scheduled, due or created date, and a completed task gets a l
 
 ### Back-fill the whole vault (Pro)
 
-"Link the done dates in the whole vault" does the back-fill for every note, with the same preview. One undo puts back all notes.
+"Link the done dates in the whole vault" does the back-fill for the whole vault, after a preview. One undo puts back all notes.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/vault-preview.png" alt="The preview window of a whole vault back-fill, with nine tasks in three notes" width="720">
 
 ## Install
 
-Open Settings, then Community plugins, then Browse, and search for "Task Date Links". Select Install, then Enable. The Tasks plugin is optional, but it is the usual source of done dates.
+Open Settings, then Community plugins, then Browse, and search for "Task Date Links". Select Install, then Enable.
 
 To install by hand, download `main.js`, `manifest.json` and `styles.css` from the latest release. Put them in `<vault>/.obsidian/plugins/task-date-links/`. Reload the community plugins, then turn on Task Date Links.
 
@@ -70,16 +70,16 @@ To install by hand, download `main.js`, `manifest.json` and `styles.css` from th
 
 Complete a task as you do now, for example with the Tasks command "Toggle task done". When Obsidian has saved the note with the done date, the link follows in a few seconds.
 
-Only a done date of today or yesterday gets a link on its own. When you edit a note from last year, its old tasks stay as they are. Use the back-fill for those.
+Only a done date of today or yesterday gets a link on its own. Old tasks in a note that you edit stay as they are. Use the back-fill for those.
 
 | Command | What it does |
 | --- | --- |
 | Link the done dates in the current note | Preview, then link every done date of the note. |
 | Link the done dates in the selection | The same for the selected lines only. |
-| Link the done dates in the whole vault | The same for every note. Pro. |
+| Link the done dates in the whole vault | The same for the whole vault. Pro. |
 | Undo the last back-fill | Puts back the lines of the last back-fill. |
 
-To keep one note out, add the property `task-date-links: false` to it.
+To keep one note out, add the property `task-date-links: false` to it. The plugin then adds no link on completion there. Every back-fill skips the note and counts it in the preview and the final notice. Only the boolean `false` counts, not the quoted text `"false"`.
 
 A link that you delete by hand is not added again in the same session.
 
@@ -87,7 +87,7 @@ A link that you delete by hand is not added again in the same session.
 
 The free version has no time or task limit.
 
-Pro adds the back-fill of the whole vault, links for the start, scheduled, due and created dates, weekly and monthly note links, and folder rules. To get it:
+Pro adds the two features marked Pro above. To get it:
 
 1. Sponsor [theluckystrike on GitHub Sponsors](https://github.com/sponsors/theluckystrike) with $5 a month, or $15 once. When you have paid $15 in total, Pro stays on.
 2. In Obsidian, open the settings of Task Date Links and select "Sign in with GitHub".
@@ -100,10 +100,10 @@ If you sponsor after you sign in, select Refresh. If a monthly sponsorship ends 
 | Setting | What it does |
 | --- | --- |
 | Pro | Sign in, status, Refresh and Sign out. |
-| Link a task when it is completed | Turns the link on completion on or off. It is on by default. |
+| Link a task when it is completed | On by default. |
 | Daily note format | A moment format. Empty means the format of the Daily notes plugin. |
 | Link text format | An optional moment format for the text after the pipe. |
-| Remove the link when a task is reopened | Removes the links that the plugin added when you uncheck the task. |
+| Remove the link when a task is reopened | On uncheck, removes a link that the plugin added in the same session. |
 | Start, scheduled, due and created date | Pro. Link these dates of a completed task. |
 | Weekly and monthly note | Pro. Link the week or month of each linked date, with a format for each. |
 | Only these folders, Skip these folders | Pro. One folder for each line. |
@@ -112,7 +112,7 @@ If you sponsor after you sign in, select Refresh. If a monthly sponsorship ends 
 
 ### Do I need the Tasks plugin?
 
-No. Task Date Links reads the done date in the note. Tasks is the usual way to get it. A date that you type by hand also works.
+No. Task Date Links reads the done date in the note. Tasks is the usual source, and a date that you type by hand also works.
 
 ### Will it break my tasks?
 

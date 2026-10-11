@@ -4,9 +4,9 @@ import { createGitHubSponsors } from './license/github-obsidian';
 import { SPONSORS, bindPro, isPro, resetPro } from './pro';
 import { DEFAULT_SETTINGS, TaskDateLinksSettingTab, normalizeSettings, type TaskDateLinksSettings } from './settings';
 import { linkText, type Kind, type LineRange, type LinkOptions } from './links';
-import { FALLBACK_FORMAT, buildLinksFor, folderAllowed, recentWindow, splitFolders, type LinkConfig } from './options';
+import { FALLBACK_FORMAT, buildLinksFor, folderAllowed, optedOut, recentWindow, splitFolders, type LinkConfig } from './options';
 import { reconcile, type FileMemo, type ReconcileOptions } from './reconcile';
-import { PreviewModal, type PreviewFile } from './preview';
+import { PreviewModal, skippedText, type PreviewFile } from './preview';
 import { formatIso, todayIso } from './moment';
 import { undoEdits, type UndoFile } from './undo';
 
@@ -18,7 +18,6 @@ const SETTLE_MS = 250;
 const RECENT_DAYS = 1;
 /** Most notes the memo keeps. The oldest one goes first. */
 const MEMO_MAX_FILES = 500;
-const PROPERTY = 'task-date-links';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
@@ -143,11 +142,16 @@ export default class TaskDateLinksPlugin extends Plugin {
 		return folderAllowed(path, splitFolders(this.settings.onlyFolders), splitFolders(this.settings.ignoreFolders));
 	}
 
+	/** True when the note has the property `task-date-links: false`. The back-fill asks the same function as the link on completion. */
+	private noteOptedOut(file: TFile): boolean {
+		return optedOut(this.app.metadataCache.getFileCache(file)?.frontmatter);
+	}
+
 	// ---- on completion ----
 
 	private onChanged(file: TFile, cache: CachedMetadata): void {
 		if (!this.settings.auto || file.extension !== 'md' || !this.pathAllowed(file.path)) return;
-		if (cache.frontmatter?.[PROPERTY] === false) return;
+		if (optedOut(cache.frontmatter)) return;
 		const hasDone = (cache.listItems ?? []).some((li) => li.task !== undefined && li.task !== ' ');
 		if (!hasDone && !this.memos.has(file.path)) return;
 		const old = this.timers.get(file.path);
@@ -237,13 +241,22 @@ export default class TaskDateLinksPlugin extends Plugin {
 		return (this.app.metadataCache.getFileCache(file)?.listItems ?? []).some((li) => li.task !== undefined && li.task !== ' ');
 	}
 
-	/** Builds the plan, shows the preview and applies it when the user agrees. Back-fill links every done date, old or new. */
+	/**
+	 * Builds the plan, shows the preview and applies it when the user agrees. Back-fill links every done date, old or new.
+	 * A note that the folder rules or the property `task-date-links: false` keep out is never read and never changed.
+	 */
 	private async backfill(files: readonly TFile[], range: LineRange | undefined, title: string, editor?: Editor): Promise<void> {
 		const opts = this.linkOptions(null);
 		const preview: PreviewFile[] = [];
-		const allowed = files.filter((f) => this.pathAllowed(f.path));
-		if (allowed.length === 0 && files.length > 0) {
+		const inFolders = files.filter((f) => this.pathAllowed(f.path));
+		if (inFolders.length === 0 && files.length > 0) {
 			new Notice('The folder rules skip this note.');
+			return;
+		}
+		const allowed = inFolders.filter((f) => !this.noteOptedOut(f));
+		const skipped = inFolders.length - allowed.length;
+		if (editor && files.length === 1 && skipped === 1) {
+			new Notice('The property "task-date-links: false" skips this note. Nothing was changed.');
 			return;
 		}
 		for (const f of allowed) {
@@ -252,18 +265,24 @@ export default class TaskDateLinksPlugin extends Plugin {
 			if (changes.length > 0) preview.push({ path: f.path, changes });
 		}
 		if (preview.length === 0) {
-			new Notice('No done dates to link.');
+			new Notice(['No done dates to link.', skippedText(skipped)].filter((t) => t !== '').join(' '));
 			return;
 		}
-		new PreviewModal(this.app, title, preview, () => this.applyPlan(allowed, preview, range)).open();
+		new PreviewModal(this.app, title, preview, () => this.applyPlan(allowed, preview, range, skipped), skipped).open();
 	}
 
-	private async applyPlan(files: readonly TFile[], preview: readonly PreviewFile[], range: LineRange | undefined): Promise<void> {
+	private async applyPlan(files: readonly TFile[], preview: readonly PreviewFile[], range: LineRange | undefined, skippedBefore: number): Promise<void> {
 		const opts = this.linkOptions(null);
 		const planned = new Set(preview.map((p) => p.path));
 		const done: UndoFile[] = [];
+		let skipped = skippedBefore;
 		for (const f of files) {
 			if (!planned.has(f.path)) continue;
+			// The property can change while the preview is open, for example through a sync.
+			if (this.noteOptedOut(f)) {
+				skipped++;
+				continue;
+			}
 			const edits: UndoFile['edits'] = [];
 			await this.app.vault.process(f, (now) => {
 				const r = linkText(now, opts, range);
@@ -276,7 +295,8 @@ export default class TaskDateLinksPlugin extends Plugin {
 		const n = done.reduce((sum, d) => sum + d.edits.length, 0);
 		this.settings.undo = n > 0 ? { at: Date.now(), files: done } : this.settings.undo;
 		await this.saveSettings();
-		new Notice(`Linked ${n} done ${n === 1 ? 'date' : 'dates'} in ${done.length} ${done.length === 1 ? 'note' : 'notes'}. Run "Undo the last back-fill" to undo.`);
+		const linked = `Linked ${n} done ${n === 1 ? 'date' : 'dates'} in ${done.length} ${done.length === 1 ? 'note' : 'notes'}.`;
+		new Notice([linked, skippedText(skipped), 'Run "Undo the last back-fill" to undo.'].filter((t) => t !== '').join(' '));
 	}
 
 	/** Puts back the lines of the last back-fill. A line that you changed since is left alone. */
