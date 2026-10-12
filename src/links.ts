@@ -147,10 +147,18 @@ export interface LineRange {
 	to: number;
 }
 
-/** Marks the lines of a note that may hold tasks: not front matter, not fenced code. */
+/** A fence line: the container prefix (spaces and quote marks), the run of backticks or tildes, and the rest of the line. */
+const FENCE_RE = /^([\s>]*)(`{3,}|~{3,})(.*)$/u;
+const quoteDepth = (line: string): number => (/^[\s>]*/u.exec(line)?.[0] ?? '').split('>').length - 1;
+
+/**
+ * Marks the lines of a note that may hold tasks: not front matter, not fenced code. A fence can be in a callout, a quote or
+ * a list item. A fence in a callout or a quote ends when the callout or quote ends.
+ */
 export function taskableLines(lines: readonly string[]): boolean[] {
 	const ok: boolean[] = [];
 	let fence = '';
+	let depth = 0;
 	let front = lines[0]?.trimEnd() === '---';
 	for (let i = 0; i < lines.length; i++) {
 		const line = (lines[i] ?? '').trimEnd();
@@ -159,11 +167,15 @@ export function taskableLines(lines: readonly string[]): boolean[] {
 			if (i > 0 && (line === '---' || line === '...')) front = false;
 			continue;
 		}
-		const f = /^\s{0,3}(`{3,}|~{3,})/u.exec(line);
-		if (fence === '' && f) {
-			fence = f[1] ?? '';
+		if (fence !== '' && quoteDepth(line) < depth) fence = '';
+		const f = FENCE_RE.exec(line);
+		const run = f?.[2] ?? '';
+		const rest = f?.[3] ?? '';
+		if (fence === '' && f && !(run.startsWith('`') && rest.includes('`'))) {
+			fence = run;
+			depth = quoteDepth(line);
 			ok.push(false);
-		} else if (fence !== '' && f && (f[1] ?? '').startsWith(fence.charAt(0)) && (f[1] ?? '').length >= fence.length && line.trim() === (f[1] ?? '')) {
+		} else if (fence !== '' && f && run.startsWith(fence.charAt(0)) && run.length >= fence.length && rest.trim() === '') {
 			fence = '';
 			ok.push(false);
 		} else {

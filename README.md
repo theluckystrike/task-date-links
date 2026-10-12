@@ -2,7 +2,7 @@
 
 Adds a real daily note link to a task when you complete it, so backlinks show what you finished each day.
 
-Tasks writes the done date as text, such as `✅ 2026-10-10`. Task Date Links adds the link for backlinks and the graph. It does not read the internals of Tasks.
+Tasks writes the done date as text, such as `✅ 2026-10-10`. Task Date Links adds the link for backlinks and the graph.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/task-date-links.gif" alt="Complete a task with the Tasks plugin and a link to today appears, then the back-fill of old done tasks" width="720">
 
@@ -18,7 +18,7 @@ When the Tasks plugin writes a done date, Task Date Links adds a link to that da
 
 The link goes before the fields because Tasks reads fields from the end. Dates, priority, recurrence and block ids stay readable by Tasks.
 
-Emoji and Dataview fields work. Windows line endings stay. Code blocks and front matter are skipped.
+Emoji and Dataview fields work. Windows line endings stay. Code blocks, also in callouts and lists, and front matter are skipped.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/done-link.png" alt="The task Send the invoice to Ana is checked and shows a link to 2026-10-10 before its done date" width="720">
 
@@ -66,7 +66,7 @@ Turn on the start, scheduled, due or created date, and a completed task gets a l
 
 ### Back-fill the whole vault (Pro)
 
-"Link the done dates in the whole vault" does the back-fill for the whole vault, after a preview. One undo puts back all notes.
+"Link the done dates in the whole vault" does the back-fill for the whole vault, after a preview. One undo puts back the changed lines, except lines you edited since.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/vault-preview.png" alt="The preview window of a whole vault back-fill, with nine tasks in three notes" width="720">
 
@@ -78,18 +78,18 @@ To install by hand, download `main.js`, `manifest.json` and `styles.css` from th
 
 ## Usage
 
-Complete a task as you do now, for example with the Tasks command "Toggle task done". When Obsidian has saved the note with the done date, the link follows in a few seconds.
+Complete a task as you do now, for example with the Tasks command "Toggle task done". When Obsidian has saved the note with the done date, the plugin adds the link.
 
 Only a done date of today or yesterday gets a link on its own. Old tasks in a note that you edit stay as they are. Use the back-fill for those.
 
 | Command | What it does |
 | --- | --- |
-| Link the done dates in the current note | Preview, then link every done date of the note. |
+| Link the done dates in the current note | Preview, then link the done dates of the note. |
 | Link the done dates in the selection | The same for the selected lines only. |
 | Link the done dates in the whole vault | The same for the whole vault. Pro. |
 | Undo the last back-fill | Puts back the lines of the last back-fill. |
 
-To keep one note out, add the property `task-date-links: false` to it. The plugin then adds no link on completion there. Every back-fill skips the note and counts it in the preview and the final notice. Only the boolean `false` counts, not the quoted text `"false"`.
+To keep one note out, add the property `task-date-links: false` to it. The plugin then adds no link on completion there. Each back-fill skips the note and counts it in the preview and the final notice. Only the boolean `false` counts, not the quoted text `"false"`.
 
 A link that you delete by hand is not added again in the same session.
 
@@ -139,7 +139,7 @@ The links stay in your notes as normal links.
 
 ### Does it work on a phone or tablet?
 
-Yes. It uses no desktop-only feature.
+It is not desktop only and uses no Node.js API. The tests run on desktop only.
 
 ## Payment, account and network
 

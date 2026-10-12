@@ -277,6 +277,7 @@ export default class TaskDateLinksPlugin extends Plugin {
 		const planned = new Set(preview.map((p) => p.path));
 		const done: UndoFile[] = [];
 		let skipped = skippedBefore;
+		let failed = 0;
 		for (const f of files) {
 			if (!planned.has(f.path)) continue;
 			// The property can change while the preview is open, for example through a sync.
@@ -284,20 +285,29 @@ export default class TaskDateLinksPlugin extends Plugin {
 				skipped++;
 				continue;
 			}
-			const edits: UndoFile['edits'] = [];
-			await this.app.vault.process(f, (now) => {
-				const r = linkText(now, opts, range);
-				for (const c of r.changes) edits.push({ before: c.before, after: c.after });
-				return r.text;
-			});
-			if (edits.length > 0) done.push({ path: f.path, edits });
+			// A note that cannot be written (deleted or renamed while the preview is open) does not stop the other notes,
+			// and the undo still gets the notes that changed.
+			try {
+				const edits: UndoFile['edits'] = [];
+				await this.app.vault.process(f, (now) => {
+					edits.length = 0;
+					const r = linkText(now, opts, range);
+					for (const c of r.changes) edits.push({ before: c.before, after: c.after });
+					return r.text;
+				});
+				if (edits.length > 0) done.push({ path: f.path, edits });
+			} catch (e) {
+				failed++;
+				console.warn('Task Date Links: could not update', f.path, e);
+			}
 			this.memos.delete(f.path);
 		}
 		const n = done.reduce((sum, d) => sum + d.edits.length, 0);
 		this.settings.undo = n > 0 ? { at: Date.now(), files: done } : this.settings.undo;
 		await this.saveSettings();
 		const linked = `Linked ${n} done ${n === 1 ? 'date' : 'dates'} in ${done.length} ${done.length === 1 ? 'note' : 'notes'}.`;
-		new Notice([linked, skippedText(skipped), 'Run "Undo the last back-fill" to undo.'].filter((t) => t !== '').join(' '));
+		const notChanged = failed > 0 ? `${failed === 1 ? '1 note' : `${failed} notes`} could not be changed. The console shows why.` : '';
+		new Notice([linked, notChanged, skippedText(skipped), 'Run "Undo the last back-fill" to undo.'].filter((t) => t !== '').join(' '));
 	}
 
 	/** Puts back the lines of the last back-fill. A line that you changed since is left alone. */
@@ -312,12 +322,17 @@ export default class TaskDateLinksPlugin extends Plugin {
 				skipped += u.edits.length;
 				continue;
 			}
-			await this.app.vault.process(file, (now) => {
-				const r = undoEdits(now, u.edits);
-				restored += r.restored;
-				skipped += r.skipped;
-				return r.text;
-			});
+			try {
+				await this.app.vault.process(file, (now) => {
+					const r = undoEdits(now, u.edits);
+					restored += r.restored;
+					skipped += r.skipped;
+					return r.text;
+				});
+			} catch (e) {
+				skipped += u.edits.length;
+				console.warn('Task Date Links: could not undo', u.path, e);
+			}
 			this.memos.delete(u.path);
 		}
 		this.settings.undo = null;

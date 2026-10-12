@@ -1,5 +1,11 @@
 # task-date-links
 
+## 1.1.1
+
+### Patch Changes
+
+- e6438e3: Skip task lines in a code block inside a callout or a list item, and keep the other notes and the undo of a back-fill when one note cannot be written.
+
 ## 1.1.0
 
 ### Minor Changes
