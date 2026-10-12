@@ -2,7 +2,7 @@
  "slug": "task-date-links",
  "module": "task-date-links/src/links",
  "function": "linkText",
- "note": "args = [note text, options]. options (all optional) = {format, alias, kinds, window [from,to], weekly, monthly, range [firstLine,lastLine]}; the test builds the link text with a small date formatter (tests/fmt.ts) that follows moment for these formats: YYYY MM DD MMM and the en week gggg-[W]ww. expected = {text, changed: zero-based numbers of the lines that differ}. The link goes at the end of the description, before the first trailing field, because the Tasks plugin (DefaultTaskSerializer) reads fields from the end of the line, the block id first. Every expected value is written by hand, line by line.",
+ "note": "args = [note text, options]. options (all optional) = {dailyFolder, format, alias, kinds, window [from,to], weekly, monthly, range [firstLine,lastLine]}; the test builds the link text with a small date formatter (tests/fmt.ts) that follows moment for these formats: YYYY MM DD MMM and the en week gggg-[W]ww. expected = {text, changed: zero-based numbers of the lines that differ}. The link goes at the end of the description, before the first trailing field, because the Tasks plugin (DefaultTaskSerializer) reads fields from the end of the line, the block id first. Every expected value is written by hand, line by line.",
  "cases": [
   {
    "name": "basic done task gets the daily link before the done date",
@@ -588,6 +588,157 @@
     "changed": [
      0
     ]
+   }
+  },
+  {
+   "name": "daily note folder with a date label",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Journal/Daily"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Journal/Daily/2026-10-10|2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily note folder with a custom alias",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily",
+     "alias": "MMM D"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026-10-10|Oct 10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily note folder with nested date format",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily",
+     "format": "YYYY/MM/DD"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026/10/10|2026/10/10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily note folder with unsafe format uses the fallback date",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily",
+     "format": "[bad#]YYYY-MM-DD"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026-10-10|2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "unsafe daily note folder uses the plain date",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily#Tasks"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "relative daily note folder uses the plain date",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "../Daily"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[2026-10-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily note folder link with a heading is not repeated",
+   "args": [
+    "- [x] Plan [[Daily/2026-10-10#Tasks|Today]] ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026-10-10#Tasks|Today]] ✅ 2026-10-10",
+    "changed": []
+   }
+  },
+  {
+   "name": "daily folder does not change week or month targets",
+   "args": [
+    "- [x] Plan ✅ 2026-10-10",
+    {
+     "dailyFolder": "Daily",
+     "weekly": true,
+     "monthly": true
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026-10-10|2026-10-10]] [[2026-W41]] [[2026-10]] ✅ 2026-10-10",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "daily folder keeps Dataview fields and Windows line endings",
+   "args": [
+    "- [x] Plan [completion:: 2026-10-10]\r\n",
+    {
+     "dailyFolder": "Daily"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[Daily/2026-10-10|2026-10-10]] [completion:: 2026-10-10]\r\n",
+    "changed": [
+     0
+    ]
+   }
+  },
+  {
+   "name": "a short date link counts as the daily folder link",
+   "args": [
+    "- [x] Plan [[2026-10-10]] ✅ 2026-10-10\n- [x] Call [[2026-10-09|Fri]] ✅ 2026-10-09",
+    {
+     "dailyFolder": "Daily"
+    }
+   ],
+   "expected": {
+    "text": "- [x] Plan [[2026-10-10]] ✅ 2026-10-10\n- [x] Call [[2026-10-09|Fri]] ✅ 2026-10-09",
+    "changed": []
    }
   }
  ]

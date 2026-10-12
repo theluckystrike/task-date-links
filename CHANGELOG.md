@@ -1,5 +1,11 @@
 # task-date-links
 
+## 1.1.0
+
+### Minor Changes
+
+- f699110: Add free daily note folder links with the core folder, a folder override and date link text.
+
 ## 1.0.2
 
 ### Patch Changes

@@ -4,6 +4,7 @@ import { buildLinksFor, type LinkConfig } from '../src/options';
 import { fmt } from './fmt';
 
 export interface VectorSpec {
+	dailyFolder?: string;
 	format?: string;
 	alias?: string;
 	kinds?: Kind[];
@@ -18,6 +19,7 @@ export interface VectorSpec {
 export function toOptions(spec: VectorSpec | undefined): LinkOptions {
 	const s = spec ?? {};
 	const cfg: LinkConfig = {
+		dailyFolder: s.dailyFolder,
 		format: s.format ?? 'YYYY-MM-DD',
 		alias: s.alias ?? '',
 		weekly: s.weekly === true,

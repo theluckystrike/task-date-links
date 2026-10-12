@@ -26,7 +26,7 @@ describe(`${pluginId} back-fill`, function () {
 	afterEach(async function () {
 		await closeModals();
 		await setPro(false);
-		await setSettings({ onlyFolders: '', ignoreFolders: '', weekly: false, monthly: false, linkDue: false, linkStart: false, alias: '' });
+		await setSettings({ onlyFolders: '', ignoreFolders: '', weekly: false, monthly: false, linkDue: false, linkStart: false, alias: '', dailyFolder: '' });
 		await writeFile(OLD, oldText);
 		await writeFile(READING, readingText);
 	});
@@ -61,6 +61,19 @@ describe(`${pluginId} back-fill`, function () {
 		await previewSummary();
 		await clickPreview('Cancel');
 		expect(await readFile(OLD)).toBe(oldText);
+	});
+
+	it('back-fill shows the folder target before it writes and one undo restores the task', async function () {
+		await setSettings({ dailyFolder: 'Journal/Daily' });
+		await obsidianPage.openFile(OLD);
+		await run('link-done-dates-note');
+		expect(await previewSummary()).toBe('4 tasks in 1 note will get a link.');
+		expect(await browser.$('.task-date-links-preview').getText()).toContain('[[Journal/Daily/2026-09-12|2026-09-12]]');
+		expect(await readFile(OLD)).toBe(oldText);
+		await clickPreview('Link the dates');
+		await waitFile(OLD, (t) => t.includes('[[Journal/Daily/2026-09-12|2026-09-12]]'), 'the folder back-fill did not write');
+		await run('undo-backfill');
+		await waitFile(OLD, (t) => t === oldText, 'undo did not restore the folder back-fill');
 	});
 
 	it('a note with nothing to link shows a notice and no preview', async function () {

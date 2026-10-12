@@ -72,6 +72,14 @@ describe('reconcile', () => {
 		expect(second.text).toBe('- [ ] A\r\n');
 	});
 
+	it('removes only its full folder link when the task is reopened', () => {
+		const folderOpts = { ...opts(), linksFor: () => [{ target: 'Daily/2026-10-10', text: '[[Daily/2026-10-10|Oct 10]]' }] };
+		const first = reconcile('- [x] A [[Other/2026-10-10]] ✅ 2026-10-10', undefined, folderOpts);
+		expect(first.text).toBe('- [x] A [[Other/2026-10-10]] [[Daily/2026-10-10|Oct 10]] ✅ 2026-10-10');
+		const second = reconcile('- [ ] A [[Other/2026-10-10]] [[Daily/2026-10-10|Oct 10]]', first.memo, folderOpts);
+		expect(second.text).toBe('- [ ] A [[Other/2026-10-10]]');
+	});
+
 	it('is stable: a second run over its own output changes nothing', () => {
 		const text = '- [x] A ✅ 2026-10-10\n- [x] B ✅ 2026-10-09\n- [ ] C\n';
 		const r1 = reconcile(text, undefined, opts());

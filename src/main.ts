@@ -1,4 +1,4 @@
-import { Notice, Plugin, type CachedMetadata, type Editor, type TFile } from 'obsidian';
+import { Notice, Plugin, normalizePath, type CachedMetadata, type Editor, type TFile } from 'obsidian';
 import type { SponsorsManager } from './license/index';
 import { createGitHubSponsors } from './license/github-obsidian';
 import { SPONSORS, bindPro, isPro, resetPro } from './pro';
@@ -30,14 +30,14 @@ function peek(obj: unknown, key: string): unknown {
 	}
 }
 
-/** The date format of the core Daily notes plugin, or '' when it is off or has none. */
-function coreDailyFormat(app: unknown): string {
+/** Reads a text option of the core Daily notes plugin. A host without the option gives ''. */
+function coreDailyOption(app: unknown, key: 'format' | 'folder'): string {
 	const internal = peek(app, 'internalPlugins');
 	const getter = peek(internal, 'getPluginById');
 	if (typeof getter !== 'function') return '';
 	try {
 		const plugin: unknown = (getter as (id: string) => unknown).call(internal, 'daily-notes');
-		const format = peek(peek(peek(plugin, 'instance'), 'options'), 'format');
+		const format = peek(peek(peek(plugin, 'instance'), 'options'), key);
 		return typeof format === 'string' ? format.trim() : '';
 	} catch {
 		return '';
@@ -101,13 +101,14 @@ export default class TaskDateLinksPlugin extends Plugin {
 	}
 
 	private dailyFormat(): string {
-		return this.settings.format.trim() || coreDailyFormat(this.app) || FALLBACK_FORMAT;
+		return this.settings.format.trim() || coreDailyOption(this.app, 'format') || FALLBACK_FORMAT;
 	}
 
 	private config(): LinkConfig {
 		const s = this.settings;
 		const pro = isPro();
-		return { format: this.dailyFormat(), alias: s.alias, weekly: pro && s.weekly, weeklyFormat: s.weeklyFormat, monthly: pro && s.monthly, monthlyFormat: s.monthlyFormat };
+		const dailyFolder = normalizePath(s.dailyFolder.trim() || coreDailyOption(this.app, 'folder'));
+		return { dailyFolder, format: this.dailyFormat(), alias: s.alias, weekly: pro && s.weekly, weeklyFormat: s.weeklyFormat, monthly: pro && s.monthly, monthlyFormat: s.monthlyFormat };
 	}
 
 	/** The text of a link for the example date, for the settings. */

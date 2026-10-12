@@ -13,6 +13,8 @@ export const KINDS: readonly Kind[] = ['created', 'start', 'scheduled', 'due', '
 export interface LinkText {
 	target: string;
 	text: string;
+	/** Other targets that link the same note, such as the date without the daily folder. A line with one of them needs no link. */
+	same?: string[];
 }
 
 export interface LinkOptions {
@@ -123,7 +125,7 @@ export function linksToAddFor(t: ParsedTask, opts: LinkOptions): LinkText[] {
 		const iso = t.dates[kind];
 		if (iso === undefined || !opts.kinds.includes(kind)) continue;
 		for (const link of opts.linksFor(iso)) {
-			const have = hasLink(t.description, link.target) || out.some((o) => o.target.toLowerCase() === link.target.toLowerCase());
+			const have = [link.target, ...(link.same ?? [])].some((x) => hasLink(t.description, x)) || out.some((o) => o.target.toLowerCase() === link.target.toLowerCase());
 			if (!have) out.push(link);
 		}
 	}

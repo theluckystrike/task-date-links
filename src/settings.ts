@@ -1,7 +1,7 @@
-import { PluginSettingTab, type SettingDefinitionItem } from 'obsidian';
+import { PluginSettingTab, normalizePath, type SettingDefinitionItem } from 'obsidian';
 import { sponsorsSettingItems } from './license/github-obsidian';
 import { PRO_UI, isPro } from './pro';
-import { DEFAULT_MONTHLY, DEFAULT_WEEKLY, safeTarget } from './options';
+import { DEFAULT_MONTHLY, DEFAULT_WEEKLY, safeFolder, safeTarget } from './options';
 import { normalizeUndo, type UndoBatch } from './undo';
 import type TaskDateLinksPlugin from './main';
 
@@ -10,7 +10,9 @@ export interface TaskDateLinksSettings {
 	auto: boolean;
 	/** Daily note format. Empty means the format of the Daily notes plugin, or YYYY-MM-DD. */
 	format: string;
-	/** Link text format after the pipe. Empty means no alias. */
+	/** Empty means the folder of the Daily notes plugin. A slash means the vault root. */
+	dailyFolder: string;
+	/** Link text format after the pipe. Empty shows the date without the daily folder. */
 	alias: string;
 	/** Remove the links this plugin added when a task is reopened. */
 	unlink: boolean;
@@ -34,6 +36,7 @@ export interface TaskDateLinksSettings {
 export const DEFAULT_SETTINGS: TaskDateLinksSettings = {
 	auto: true,
 	format: '',
+	dailyFolder: '',
 	alias: '',
 	unlink: true,
 	linkCreated: false,
@@ -67,6 +70,7 @@ export function normalizeSettings(saved: Partial<TaskDateLinksSettings> | null |
 	return {
 		auto: bool(s.auto, d.auto),
 		format: text(s.format, d.format),
+		dailyFolder: text(s.dailyFolder, d.dailyFolder),
 		alias: text(s.alias, d.alias),
 		unlink: bool(s.unlink, d.unlink),
 		linkCreated: bool(s.linkCreated, d.linkCreated),
@@ -113,8 +117,16 @@ export class TaskDateLinksSettingTab extends PluginSettingTab {
 				control: { type: 'text', key: 'format', defaultValue: DEFAULT_SETTINGS.format, placeholder: 'YYYY-MM-DD', validate: (v) => this.checkFormat(v) },
 			},
 			{
+				name: 'Daily note folder',
+				desc: 'Leave it empty to use the folder of the Daily notes plugin. Enter / for the vault root. Links show the date without the folder path.',
+				control: {
+					type: 'text', key: 'dailyFolder', defaultValue: '', placeholder: 'Daily',
+					validate: (v) => safeFolder(normalizePath(v.trim())) ? undefined : 'Use a vault folder without [ ] | # ^ or relative path segments.',
+				},
+			},
+			{
 				name: 'Link text format',
-				desc: 'An optional moment format for the text that shows in place of the note name, such as MMM D. Leave it empty for the plain link.',
+				desc: 'An optional moment format for the link text, such as MMM D. Leave it empty to show the date without the daily folder.',
 				control: { type: 'text', key: 'alias', defaultValue: DEFAULT_SETTINGS.alias, placeholder: 'MMM D', validate: (v) => this.checkFormat(v) },
 			},
 			{

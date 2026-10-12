@@ -45,6 +45,45 @@ describe('settings', () => {
 	});
 });
 
+describe('daily note folder', () => {
+	function pluginWithCore(options: unknown) {
+		const app = App.createConfigured__({ files: {} });
+		Object.defineProperty(app, 'internalPlugins', { value: { getPluginById: () => ({ instance: { options } }) } });
+		return new TaskDateLinksPlugin(app as never, manifest as never);
+	}
+
+	it('uses the core folder and date format without Pro', () => {
+		const plugin = pluginWithCore({ folder: 'Journal/Daily', format: 'DD-MM-YYYY' });
+		expect(isPro()).toBe(false);
+		expect(plugin.exampleLink()).toBe('[[Journal/Daily/10-10-2026|10-10-2026]]');
+	});
+
+	it('uses an explicit folder and alias instead of the core folder', () => {
+		const plugin = pluginWithCore({ folder: 'Daily', format: 'YYYY-MM-DD' });
+		plugin.settings.dailyFolder = 'Work\\Journal/';
+		plugin.settings.alias = 'MMM D';
+		expect(plugin.exampleLink()).toBe('[[Work/Journal/2026-10-10|Oct 10]]');
+	});
+
+	it('uses a slash to override the core folder with the vault root', () => {
+		const plugin = pluginWithCore({ folder: 'Daily' });
+		plugin.settings.dailyFolder = '/';
+		expect(plugin.exampleLink()).toBe('[[2026-10-10]]');
+	});
+
+	it('keeps the old output when the core options are absent or malformed', () => {
+		for (const options of [undefined, null, { folder: 1, format: [] }]) {
+			expect(pluginWithCore(options).exampleLink()).toBe('[[2026-10-10]]');
+		}
+	});
+
+	it('does not fail when the core plugin getter throws', () => {
+		const app = App.createConfigured__({ files: {} });
+		Object.defineProperty(app, 'internalPlugins', { value: { getPluginById: () => { throw new Error('unavailable'); } } });
+		expect(new TaskDateLinksPlugin(app as never, manifest as never).exampleLink()).toBe('[[2026-10-10]]');
+	});
+});
+
 describe('pro facade', () => {
 	it('is off with no manager', () => {
 		expect(isPro()).toBe(false);

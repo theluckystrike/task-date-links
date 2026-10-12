@@ -38,7 +38,7 @@
 	},
 	{
 		"feature": "settings",
-		"caption": "Settings: link on completion, the daily note format, the link text format and the reopen rule.",
+		"caption": "The settings show the daily note folder, date format, link text format and reopen rule.",
 		"note": "Launch checklist.md",
 		"eval": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.plugins.plugins['task-date-links'].pro.signOut(); app.setting.open(); app.setting.openTabById('task-date-links'); await sleep(600); return 'ok'; })()",
 		"after": "app.setting.close(); 'ok'",
@@ -89,5 +89,14 @@
 				"hold": 3200
 			}
 		]
+	},
+	{
+		"feature": "daily-folder",
+		"caption": "The back-fill preview links completed tasks to Journal/Daily and shows the date without the folder path.",
+		"note": "Folder tasks.md",
+		"eval": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); app.setting.close(); for (let i = 0; i < 12 && document.querySelector('.modal-container'); i++) { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await sleep(200); } const p = app.plugins.plugins['task-date-links']; await p.pro.signOut(); p.settings.dailyFolder = 'Journal/Daily'; p.settings.alias = ''; p.settingsChanged(); app.commands.executeCommandById('task-date-links:link-done-dates-note'); await sleep(900); return 'ok'; })()",
+		"after": "(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); const p = app.plugins.plugins['task-date-links']; p.settings.dailyFolder = ''; p.settingsChanged(); return 'ok'; })()",
+		"wait": 900,
+		"zoom": 0.9
 	}
 ]

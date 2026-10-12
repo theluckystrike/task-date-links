@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, buildLinksFor, folderAllowed, recentWindow, safeTarget, splitFolders } from '../src/options';
+import { addDays, buildLinksFor, folderAllowed, recentWindow, safeFolder, safeTarget, splitFolders } from '../src/options';
 import { doneDate, hasLink, parseTask, removeLink, taskableLines } from '../src/links';
 import { normalizeUndo, undoEdits } from '../src/undo';
 import { splitAdded, summarize } from '../src/preview';
@@ -36,6 +36,10 @@ describe('link helpers', () => {
 });
 
 describe('options', () => {
+	it('safeFolder rejects link delimiters and . or .. segments', () => {
+		for (const ok of ['', 'Daily', 'Journal/Daily', 'Journal/2026 notes']) expect(safeFolder(ok)).toBe(true);
+		for (const bad of ['.', '..', 'Journal/./Daily', 'Journal/../Daily', 'Daily#Tasks', 'Daily|x', 'Daily^1', 'Dai[ly]']) expect(safeFolder(bad)).toBe(false);
+	});
 	const cfg = { format: 'YYYY-MM-DD', alias: '', weekly: false, weeklyFormat: '', monthly: false, monthlyFormat: '' };
 	it('checks names for links', () => {
 		expect(safeTarget('2026-10-10')).toBe(true);

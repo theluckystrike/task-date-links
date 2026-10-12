@@ -13,7 +13,7 @@ describe(`${pluginId} with the Tasks plugin`, function () {
 	});
 
 	afterEach(async function () {
-		await setSettings({ auto: true, unlink: true });
+		await setSettings({ auto: true, unlink: true, dailyFolder: '' });
 	});
 
 	after(async function () {
@@ -44,6 +44,29 @@ describe(`${pluginId} with the Tasks plugin`, function () {
 				browser.executeObsidian(({ app }, from, to) => (app.metadataCache.resolvedLinks[from] ?? {})[to] === 1, f, daily),
 			{ timeout: 10000, timeoutMsg: 'the daily note has no link from the task note in resolvedLinks' },
 		);
+	});
+
+	it('a full folder link resolves to the daily note when another note has the same name, and reopens cleanly', async function () {
+		const folder = `${DIR}/Journal`;
+		const f = `${DIR}/c-folder.md`;
+		const daily = `${folder}/${today}.md`;
+		await browser.executeObsidian(async ({ app }, p) => {
+			if (!app.vault.getFolderByPath(p)) await app.vault.createFolder(p);
+		}, folder);
+		await writeFile(daily, `# Journal ${today}\n`);
+		await writeFile(`${DIR}/${today}.md`, `# Other ${today}\n`);
+		await setSettings({ dailyFolder: folder });
+		await writeFile(f, '- [ ] File the invoice\n');
+		await toggleLine(f, 0);
+		const link = `[[${folder}/${today}|${today}]]`;
+		expect(await waitFile(f, (t) => t.includes(link), 'no folder link')).toBe(`- [x] File the invoice ${link} ✅ ${today}\n`);
+		await browser.waitUntil(
+			() => browser.executeObsidian(({ app }, from, to) => (app.metadataCache.resolvedLinks[from] ?? {})[to] === 1, f, daily),
+			{ timeout: 10000, timeoutMsg: 'the link did not resolve to the daily note folder' },
+		);
+		expect(await tasksToggle(`- [x] File the invoice ${link} ✅ ${today}`, f)).toBe(`- [ ] File the invoice ${link}`);
+		await toggleLine(f, 0);
+		expect(await waitFile(f, (t) => !t.includes('[x]') && !t.includes('[['), 'the folder link stayed after reopen')).toBe('- [ ] File the invoice\n');
 	});
 
 	it('unchecking the task with Tasks removes the link the plugin added', async function () {

@@ -2,7 +2,7 @@
 
 Adds a real daily note link to a task when you complete it, so backlinks show what you finished each day.
 
-The Tasks plugin writes the done date as text, such as `✅ 2026-10-10`. Text is not a link, so the daily note for that day shows nothing. The Tasks maintainers closed the request as not planned in June 2026 (issue 3372, 43 reactions) and said that another plugin should do it. Task Date Links is that plugin. It is by a different author and does not read the internals of Tasks.
+Tasks writes the done date as text, such as `✅ 2026-10-10`. Task Date Links adds the link for backlinks and the graph. It does not read the internals of Tasks.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/task-date-links.gif" alt="Complete a task with the Tasks plugin and a link to today appears, then the back-fill of old done tasks" width="720">
 
@@ -16,13 +16,13 @@ When the Tasks plugin writes a done date, Task Date Links adds a link to that da
 - [x] Send the invoice to Ana [[2026-10-10]] ✅ 2026-10-10 ^invoice
 ```
 
-The link goes before the fields on purpose. Tasks reads the fields from the end of the line, so a link after the done date would hide the date. This way, Tasks still reads every field: the dates, the priority, the recurrence rule and the block id.
+The link goes before the fields because Tasks reads fields from the end. Dates, priority, recurrence and block ids stay readable by Tasks.
 
-The plugin finds the fields with the same rules as Tasks, in the emoji format and the Dataview format. It changes nothing in a line except to add the link, keeps Windows line endings, and skips code blocks and front matter.
+Emoji and Dataview fields work. Windows line endings stay. Code blocks and front matter are skipped.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/done-link.png" alt="The task Send the invoice to Ana is checked and shows a link to 2026-10-10 before its done date" width="720">
 
-A recurring task works too. Tasks makes a new open copy and finishes the old one. Only the finished copy gets the link. When you uncheck a task, the plugin removes only a link that it added on completion in the same session, and not after you change a plugin setting, rename the note or back-fill it. A back-filled link and a link that you typed yourself stay.
+Only the finished copy of a recurring task gets a link. Uncheck removes links added on completion in the same session. After a setting change, note rename or back-fill, those links stay. Links you typed and back-filled links stay.
 
 ### The daily note shows what you finished
 
@@ -34,7 +34,7 @@ Open the daily note and look at the Backlinks pane. Each task that you completed
 
 For old done dates, run "Link the done dates in the current note". To change only some lines, select them and run "Link the done dates in the selection".
 
-A window lists up to 40 lines that would change, with each new link marked, and says how many more it does not show. Nothing is written until you select "Link the dates". Then "Undo the last back-fill" puts every line back. A line that you edited since stays as it is.
+The preview shows up to 40 changed lines and counts the rest. Select "Link the dates" to apply it. "Undo the last back-fill" restores the lines, except those you edited since.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/back-fill-preview.png" alt="The preview window of a back-fill with four lines and the new links marked" width="720">
 
@@ -47,6 +47,16 @@ After you apply it, a notice tells you how many dates were linked.
 The plugin reads the date format of the core Daily notes plugin. You can set another moment format, such as `DD-MM-YYYY`. A format that would break a link, for example one with `#` or `|`, falls back to `YYYY-MM-DD`. A link text format such as `MMM D` gives `[[2026-10-10|Oct 10]]`.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/settings.png" alt="The settings tab with link on completion, the daily note format and the link text format" width="720">
+
+### Daily notes in a folder
+
+The plugin uses the core Daily notes folder. For `Journal/Daily`, it writes `[[Journal/Daily/2026-10-10|2026-10-10]]`. The date text links to that folder, even with duplicate note names.
+
+Set "Daily note folder" to override the core folder. Empty uses the core folder; `/` uses the vault root. The date format gives the path inside it. The link text format sets the display text.
+
+Completion and back-fill use this folder. A line that links the date with or without the folder gets no second link. Settings reject unsafe folders and `.` or `..` segments. Unsafe saved folders fall back to date links without a folder.
+
+<img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/daily-folder.png" alt="The back-fill preview shows date links to Journal/Daily with the date as link text" width="720">
 
 ### More dates and week and month notes (Pro)
 
@@ -102,6 +112,7 @@ If you sponsor after you sign in, select Refresh. A negative sponsorship answer 
 | Pro | Sign in, status, Refresh and Sign out. |
 | Link a task when it is completed | On by default. |
 | Daily note format | A moment format. Empty means the format of the Daily notes plugin. |
+| Daily note folder | Empty uses the core Daily notes folder. `/` uses the vault root. |
 | Link text format | An optional moment format for the text after the pipe. |
 | Remove the link when a task is reopened | On uncheck, removes a link that the plugin added in the same session. |
 | Start, scheduled, due and created date | Pro. Link these dates of a completed task. |

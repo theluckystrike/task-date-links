@@ -25,6 +25,7 @@ interface Rig {
 
 interface Command {
 	callback?: () => void;
+	checkCallback?: (checking: boolean) => boolean;
 	editorCallback?: (editor: unknown, ctx: unknown) => void;
 	editorCheckCallback?: (checking: boolean, editor: unknown, ctx: unknown) => boolean;
 }
@@ -73,7 +74,10 @@ async function run(r: Rig, id: string, path?: string, lines?: [number, number]):
 	const cmd = (r.plugin as unknown as { commands__: Map<string, Command> }).commands__.get(id);
 	if (!cmd) throw new Error(`no command ${id}`);
 	const seen = r.notices.length + r.modals.length;
-	if (path === undefined) cmd.callback?.();
+	if (path === undefined) {
+		if (cmd.checkCallback) expect(cmd.checkCallback(false)).toBe(true);
+		else cmd.callback?.();
+	}
 	else if (cmd.editorCallback) cmd.editorCallback(await editorOf(r, path, lines), { file: r.file(path) });
 	else expect(cmd.editorCheckCallback?.(false, await editorOf(r, path, lines), { file: r.file(path) })).toBe(true);
 	await vi.waitFor(() => expect(r.notices.length + r.modals.length).toBeGreaterThan(seen));
@@ -99,6 +103,16 @@ describe('optedOut, the one reader of the property', () => {
 });
 
 describe('back-fill and the property task-date-links: false', () => {
+	it('links a folder in the preview, applies it and undoes it without Pro', async () => {
+		const before = '- [x] Plan ✅ 2026-09-13\n';
+		const r = await rig({ 'Plan.md': before }, { dailyFolder: 'Journal/Daily' });
+		await run(r, 'link-done-dates-note', 'Plan.md');
+		expect(r.modals[0]?.contentEl.textContent).toContain('[[Journal/Daily/2026-09-13|2026-09-13]]');
+		await applyPreview(r.modals[0]);
+		expect(await r.read('Plan.md')).toBe('- [x] Plan [[Journal/Daily/2026-09-13|2026-09-13]] ✅ 2026-09-13\n');
+		await run(r, 'undo-backfill');
+		expect(await r.read('Plan.md')).toBe(before);
+	});
 	it('the current note alone: an opted-out note gets a clear notice, no preview and no change', async () => {
 		const before = `${OPT_OUT}- [x] Private ✅ 2026-09-12\n`;
 		const r = await rig({ 'Private.md': before });

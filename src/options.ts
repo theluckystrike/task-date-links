@@ -6,9 +6,11 @@ import type { LinkText } from './links';
 export type FormatFn = (iso: string, format: string) => string;
 
 export interface LinkConfig {
+	/** Folder of the daily notes, relative to the vault root. */
+	dailyFolder?: string;
 	/** Moment format of the daily note name. */
 	format: string;
-	/** Moment format of the link text after the pipe. Empty means no alias. */
+	/** Moment format of the link text after the pipe. Empty shows the date without the daily folder. */
 	alias: string;
 	weekly: boolean;
 	weeklyFormat: string;
@@ -40,19 +42,28 @@ export function safeTarget(name: string): boolean {
 	return name.trim() !== '' && !UNSAFE.test(name);
 }
 
-function oneLink(fmt: FormatFn, iso: string, format: string, alias: string): LinkText | null {
+/** A folder must not contain link delimiters or relative path segments. Empty means the vault root. */
+export function safeFolder(folder: string): boolean {
+	return !UNSAFE.test(folder) && !folder.split('/').some((part) => part === '.' || part === '..');
+}
+
+function oneLink(fmt: FormatFn, iso: string, format: string, alias: string, folder = ''): LinkText | null {
 	const name = fmt(iso, format);
-	const target = safeTarget(name) ? name : fmt(iso, FALLBACK_FORMAT);
-	if (!safeTarget(target)) return null;
-	const shown = alias.trim() === '' ? '' : fmt(iso, alias).replace(/[\]|\r\n[#^]/g, ' ').trim();
-	return { target, text: shown !== '' && shown !== target ? `[[${target}|${shown}]]` : `[[${target}]]` };
+	const dateName = safeTarget(name) ? name : fmt(iso, FALLBACK_FORMAT);
+	if (!safeTarget(dateName)) return null;
+	const prefix = safeFolder(folder) ? folder.replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/') : '';
+	const target = prefix ? `${prefix}/${dateName}` : dateName;
+	const label = alias.trim() === '' ? (prefix ? dateName : '') : fmt(iso, alias);
+	const shown = label.replace(/[\]|\r\n[#^]/g, ' ').trim();
+	const text = shown !== '' && shown !== target ? `[[${target}|${shown}]]` : `[[${target}]]`;
+	return prefix ? { target, text, same: [dateName] } : { target, text };
 }
 
 /** The links for one date: the daily note, then the weekly and monthly note when those are on. */
 export function buildLinksFor(fmt: FormatFn, cfg: LinkConfig): (iso: string) => LinkText[] {
 	return (iso) => {
 		const out: LinkText[] = [];
-		const daily = oneLink(fmt, iso, cfg.format, cfg.alias);
+		const daily = oneLink(fmt, iso, cfg.format, cfg.alias, cfg.dailyFolder);
 		if (daily) out.push(daily);
 		if (cfg.weekly) {
 			const w = oneLink(fmt, iso, cfg.weeklyFormat || DEFAULT_WEEKLY, '');
