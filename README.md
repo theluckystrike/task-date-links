@@ -2,7 +2,7 @@
 
 Adds a real daily note link to a task when you complete it, so backlinks show what you finished each day.
 
-Tasks writes the done date as text, such as `✅ 2026-10-10`. Task Date Links adds the link for backlinks and the graph.
+Tasks writes plain text, such as `✅ 2026-10-10`. This plugin adds the link.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/task-date-links.gif" alt="Complete a task with the Tasks plugin and a link to today appears, then the back-fill of old done tasks" width="720">
 
@@ -18,7 +18,7 @@ When the Tasks plugin writes a done date, Task Date Links adds a link to that da
 
 The link goes before the fields because Tasks reads fields from the end. Dates, priority, recurrence and block ids stay readable by Tasks.
 
-Emoji and Dataview fields work. Windows line endings stay. Code blocks, also in callouts and lists, and front matter are skipped.
+Code blocks, also in callouts and lists, and front matter are skipped.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/done-link.png" alt="The task Send the invoice to Ana is checked and shows a link to 2026-10-10 before its done date" width="720">
 
@@ -26,25 +26,27 @@ Only the finished copy of a recurring task gets a link. Uncheck removes links ad
 
 ### The daily note shows what you finished
 
-Open the daily note and look at the Backlinks pane. Each task that you completed that day is there, with its whole line. The graph view shows the same links.
+The daily note’s Backlinks pane shows completed tasks with their whole lines. Graph view shows the same links.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/backlinks.png" alt="The daily note 2026-10-10 with the Backlinks pane that lists the completed task" width="720">
 
 ### Back-fill with a preview and one undo
 
-For old done dates, run "Link the done dates in the current note". To change only some lines, select them and run "Link the done dates in the selection".
+For old dates, run "Link the done dates in the current note", or select lines and run "Link the done dates in the selection".
 
 The preview shows up to 40 changed lines and counts the rest. Select "Link the dates" to apply it. "Undo the last back-fill" restores the lines, except those you edited since.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/back-fill-preview.png" alt="The preview window of a back-fill with four lines and the new links marked" width="720">
 
-After you apply it, a notice tells you how many dates were linked.
+Each Free or Pro back-fill accepts at most 5,000 notes and 20,000 changed lines total. Larger plans are refused before writes. Use smaller selections or Pro folder rules. Apply checks the full plan again; notes changed afterward are skipped for another preview.
+
+Undo keeps conflicts, missing notes and I/O failures across reload. Restore missing notes or exact linked lines, then retry. Finish recovery before another back-fill replaces it. Overlaps show busy notices. Re-enable retries failed recovery saves after pending writes. Failed enables report errors; enable again when storage recovers. Operations are not atomic.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/back-fill-done.png" alt="The note after the back-fill with the notice that explains the undo command" width="720">
 
 ### Your date format and link text
 
-The plugin reads the date format of the core Daily notes plugin. You can set another moment format, such as `DD-MM-YYYY`. A format that would break a link, for example one with `#` or `|`, falls back to `YYYY-MM-DD`. A link text format such as `MMM D` gives `[[2026-10-10|Oct 10]]`.
+The core Daily notes format is the default. Override it with a moment format, such as `DD-MM-YYYY`. Formats with unsafe characters (`#`, `|`) fall back to `YYYY-MM-DD`. Link text format `MMM D` gives `[[2026-10-10|Oct 10]]`.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/settings.png" alt="The settings tab with link on completion, the daily note format and the link text format" width="720">
 
@@ -52,7 +54,7 @@ The plugin reads the date format of the core Daily notes plugin. You can set ano
 
 The plugin uses the core Daily notes folder. For `Journal/Daily`, it writes `[[Journal/Daily/2026-10-10|2026-10-10]]`. The date text links to that folder, even with duplicate note names.
 
-Set "Daily note folder" to override the core folder. Empty uses the core folder; `/` uses the vault root. The date format gives the path inside it. The link text format sets the display text.
+Set "Daily note folder" to override the core folder. The date format gives the path inside it.
 
 Completion and back-fill use this folder. A line that links the date with or without the folder gets no second link. Settings reject unsafe folders and `.` or `..` segments. Unsafe saved folders fall back to date links without a folder.
 
@@ -66,7 +68,7 @@ Turn on the start, scheduled, due or created date, and a completed task gets a l
 
 ### Back-fill the whole vault (Pro)
 
-"Link the done dates in the whole vault" does the back-fill for the whole vault, after a preview. One undo puts back the changed lines, except lines you edited since.
+"Link the done dates in the whole vault" back-fills the whole vault after a preview.
 
 <img src="https://raw.githubusercontent.com/theluckystrike/task-date-links/HEAD/docs/vault-preview.png" alt="The preview window of a whole vault back-fill, with nine tasks in three notes" width="720">
 
@@ -78,9 +80,9 @@ To install by hand, download `main.js`, `manifest.json` and `styles.css` from th
 
 ## Usage
 
-Complete a task as you do now, for example with the Tasks command "Toggle task done". When Obsidian has saved the note with the done date, the plugin adds the link.
+Complete a task with "Toggle task done" in Tasks. The link appears after Obsidian saves the done date.
 
-Only a done date of today or yesterday gets a link on its own. Old tasks in a note that you edit stay as they are. Use the back-fill for those.
+Only today’s or yesterday’s done dates get automatic links.
 
 | Command | What it does |
 | --- | --- |
@@ -95,17 +97,19 @@ A link that you delete by hand is not added again in the same session.
 
 ## Pro
 
-The free version has no time or task limit.
+The free version has no time limit.
 
-Pro adds the two features marked Pro above. To get it:
+To get Pro:
 
-1. Sponsor [theluckystrike on GitHub Sponsors](https://github.com/sponsors/theluckystrike) with $5 a month, or $15 once. A total payment of $15 meets the payment requirement for Pro without further payment. Sign-in and the checks below still apply.
+1. Sponsor [theluckystrike on GitHub Sponsors](https://github.com/sponsors/theluckystrike) with $5 a month, or $15 once.
 2. In Obsidian, open the settings of Task Date Links and select "Sign in with GitHub".
 3. Paste the code the plugin shows at github.com/login/device and approve.
 
-If you sponsor after you sign in, select Refresh. A negative sponsorship answer turns Pro off.
+If you sponsor after you sign in, select Refresh.
 
 ## Settings
+
+After a minor or major update, this plugin opens one What's new tab in the background. The tab and settings card suggest other NoteMods plugins and Zovo Chat and link to notemods.com for feedback ([privacy](https://notemods.com/privacy/)). The tab sends no data. Turn the tab off in Settings.
 
 | Setting | What it does |
 | --- | --- |
@@ -123,7 +127,7 @@ If you sponsor after you sign in, select Refresh. A negative sponsorship answer 
 
 ### Do I need the Tasks plugin?
 
-No. Task Date Links reads the done date in the note. Tasks is the usual source, and a date that you type by hand also works.
+No. The plugin reads done dates from notes, including dates typed by hand.
 
 ### Will it break my tasks?
 
@@ -155,7 +159,7 @@ After a successful check, Pro can work offline for up to 14 days. Sign out or a 
 
 ## Support
 
-Report bugs and feature requests in this repository's issue tracker. To support the work, use [GitHub Sponsors](https://github.com/sponsors/theluckystrike).
+Report bugs and feature requests in this repository's issue tracker.
 
 ```
 npm ci

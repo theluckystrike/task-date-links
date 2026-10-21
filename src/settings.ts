@@ -4,6 +4,7 @@ import { PRO_UI, isPro } from './pro';
 import { DEFAULT_MONTHLY, DEFAULT_WEEKLY, safeFolder, safeTarget } from './options';
 import { normalizeUndo, type UndoBatch } from './undo';
 import type TaskDateLinksPlugin from './main';
+import { helloSettingItems } from './hello/settings';
 
 export interface TaskDateLinksSettings {
 	/** Link a task when it is completed. */
@@ -102,6 +103,11 @@ export class TaskDateLinksSettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		// The product rows, then the "More from NoteMods" card (packages/hello).
+		return [...this.productSettingDefinitions(), ...helloSettingItems()];
+	}
+
+	productSettingDefinitions(): SettingDefinitionItem[] {
 		const off = (): boolean => !isPro();
 		const example = this.plugin.exampleLink();
 		return [

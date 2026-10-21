@@ -8,7 +8,9 @@ import { FALLBACK_FORMAT, buildLinksFor, folderAllowed, optedOut, recentWindow, 
 import { reconcile, type FileMemo, type ReconcileOptions } from './reconcile';
 import { PreviewModal, skippedText, type PreviewFile } from './preview';
 import { formatIso, todayIso } from './moment';
-import { undoEdits, type UndoFile } from './undo';
+import { UNDO_MAX_EDITS, UNDO_MAX_FILES, undoEdits, type UndoFile, type UndoResult } from './undo';
+import { setupHello } from './hello/index';
+import WHATS_NEW from './whats-new.json';
 
 /** How often to ask the license state whether a check is due. It sends a request only when signed in and due (7 days). */
 const PRO_TICK_MS = 6 * 60 * 60 * 1000;
@@ -44,6 +46,24 @@ function coreDailyOption(app: unknown, key: 'format' | 'folder'): string {
 	}
 }
 
+/** Stored on the App, rather than in a module cache: Obsidian reloads the plugin module. */
+const OWNER_KEY = Symbol.for('task-date-links.persistence-owner.v1');
+interface Ownership {
+	retired: boolean;
+	ready: Promise<void>;
+	idle: Promise<void>;
+	saves: Promise<void>;
+	drain(): Promise<void>;
+}
+
+/** Older in-session modules can hand off successful saves without a retry callback. */
+async function drainOwner(owner: Ownership): Promise<void> {
+	if (typeof owner.drain === 'function') return owner.drain();
+	await owner.ready;
+	await owner.idle;
+	await owner.saves;
+}
+
 export default class TaskDateLinksPlugin extends Plugin {
 	settings: TaskDateLinksSettings = { ...DEFAULT_SETTINGS };
 	/** GitHub Sponsors Pro state. Created in onload; null before that. */
@@ -52,9 +72,78 @@ export default class TaskDateLinksPlugin extends Plugin {
 	/** The finished tasks seen in each note, by path. See reconcile.ts. */
 	private readonly memos = new Map<string, FileMemo>();
 	private readonly timers = new Map<string, number>();
+	/** One controller owns all note mutations and the last-back-fill recovery record. */
+	private mutationBusy = false;
+	private disposed = false;
+	private ownership: Ownership | null = null;
+	/** The latest accepted snapshot stays owned until the host confirms persistence. */
+	private pendingSettings: TaskDateLinksSettings | null = null;
+
+	private get stopped(): boolean { return this.disposed || this.ownership?.retired === true; }
+
+	private owner(): Ownership {
+		if (this.ownership) return this.ownership;
+		const app = this.app as typeof this.app & { [OWNER_KEY]?: Ownership };
+		let previous = Object.getOwnPropertyDescriptor(app, OWNER_KEY)?.value as Ownership | undefined;
+		const owner: Ownership = {
+			retired: false, ready: Promise.resolve(), idle: Promise.resolve(), saves: Promise.resolve(),
+			drain: async () => {
+				// A failed enable never becomes ready, but a later explicit enable can
+				// retry its predecessor. Only confirmed snapshots may leave owned memory.
+				await owner.ready.catch(() => undefined);
+				if (previous) { await drainOwner(previous); previous = undefined; }
+				await owner.idle;
+				await owner.saves.catch(() => undefined);
+				if (this.pendingSettings) {
+					await this.saveData(this.pendingSettings);
+					this.pendingSettings = null;
+				}
+			},
+		};
+		this.ownership = owner;
+		app[OWNER_KEY] = owner;
+		if (previous) {
+			previous.retired = true;
+			owner.ready = (async () => {
+				// onload may await this; onunload must stay synchronous. The old operation
+				// finishes its accepted writes and final recovery save without waiting on us.
+				await drainOwner(previous);
+				previous = undefined;
+				this.settings = normalizeSettings((await this.loadData()) as Partial<TaskDateLinksSettings> | null);
+			})();
+		}
+		return owner;
+	}
+
+	private async mutate(work: () => Promise<void>, retrySave = true): Promise<void> {
+		if (this.stopped) return;
+		if (this.mutationBusy) {
+			new Notice('Task date links is busy. Wait for the current operation to finish, then try again.');
+			return;
+		}
+		const owner = this.owner();
+		this.mutationBusy = true;
+		let release!: () => void;
+		owner.idle = new Promise<void>((resolve) => { release = resolve; });
+		try {
+			await owner.ready;
+			await owner.saves.catch(async (error: unknown) => {
+				if (!retrySave || this.stopped) throw error;
+				// An explicit operation can retry storage once before touching another note.
+				await this.persistSettings();
+			});
+			if (!this.stopped) await work();
+		} finally {
+			this.mutationBusy = false;
+			release();
+		}
+	}
 
 	async onload(): Promise<void> {
+		// First: "What's new" reads its state before the settings load (packages/hello). It does not wait.
+		setupHello(this, WHATS_NEW);
 		await this.loadSettings();
+		if (this.stopped) return;
 		// No request here: a request needs a GitHub sign in first (Settings, Pro, Sign in with GitHub).
 		const pro = createGitHubSponsors(this.app, this.manifest.id, SPONSORS, this);
 		pro.init();
@@ -68,12 +157,14 @@ export default class TaskDateLinksPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on('rename', (_f, old) => this.memos.delete(old)));
 		this.addCommands();
 		this.app.workspace.onLayoutReady(() => {
+			if (this.stopped) return;
 			void pro.refresh();
-			this.registerInterval(window.setInterval(() => void pro.refresh(), PRO_TICK_MS));
+			this.registerInterval(window.setInterval(() => { if (!this.stopped) void pro.refresh(); }, PRO_TICK_MS));
 		});
 	}
 
 	onunload(): void {
+		this.disposed = true;
 		resetPro();
 		for (const t of this.timers.values()) window.clearTimeout(t);
 		this.timers.clear();
@@ -81,11 +172,32 @@ export default class TaskDateLinksPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
+		const owner = this.owner();
+		await owner.ready;
+		await owner.saves;
 		this.settings = normalizeSettings((await this.loadData()) as Partial<TaskDateLinksSettings> | null);
 	}
 
 	async saveSettings(): Promise<void> {
-		await this.saveData(this.settings);
+		if (this.stopped) return;
+		await this.persistSettings();
+	}
+
+	/** Accepted saves run in order, including snapshots whose host promise outlives disable.
+	 * The operation already holding idle may enqueue its final recovery save after retirement. */
+	private persistSettings(): Promise<void> {
+		const owner = this.owner();
+		const snapshot = structuredClone(this.settings);
+		const saved = owner.saves.catch(() => undefined).then(async () => {
+			await owner.ready;
+			// A queued preferences save must use the operation's current recovery record.
+			snapshot.undo = structuredClone(this.settings.undo);
+			this.pendingSettings = snapshot;
+			await this.saveData(snapshot);
+			this.pendingSettings = null;
+		});
+		owner.saves = saved;
+		return saved;
 	}
 
 	/** Called by the settings tab after a value changed. The memos were built with the old format, so they go. */
@@ -151,7 +263,7 @@ export default class TaskDateLinksPlugin extends Plugin {
 	// ---- on completion ----
 
 	private onChanged(file: TFile, cache: CachedMetadata): void {
-		if (!this.settings.auto || file.extension !== 'md' || !this.pathAllowed(file.path)) return;
+		if (this.stopped || !this.settings.auto || file.extension !== 'md' || !this.pathAllowed(file.path)) return;
 		if (optedOut(cache.frontmatter)) return;
 		const hasDone = (cache.listItems ?? []).some((li) => li.task !== undefined && li.task !== ' ');
 		if (!hasDone && !this.memos.has(file.path)) return;
@@ -178,15 +290,37 @@ export default class TaskDateLinksPlugin extends Plugin {
 
 	/** Reads the note, and writes only when a link has to be added or removed. */
 	private async settle(file: TFile): Promise<void> {
+		if (this.stopped) return;
+		if (this.mutationBusy) {
+			// Keep the automatic update pending while a manual operation owns the controller.
+			const old = this.timers.get(file.path);
+			if (old !== undefined) window.clearTimeout(old);
+			this.timers.set(file.path, window.setTimeout(() => {
+				this.timers.delete(file.path);
+				void this.settle(file);
+			}, SETTLE_MS));
+			return;
+		}
+		try {
+			await this.mutate(() => this.settleNow(file), false);
+		} catch (e) {
+			console.warn('Task Date Links: could not update', file.path, e);
+		}
+	}
+
+	private async settleNow(file: TFile): Promise<void> {
 		try {
 			const opts = this.autoOptions();
 			const prev = this.memos.get(file.path);
-			const first = reconcile(await this.app.vault.read(file), prev, opts);
+			const text = await this.app.vault.read(file);
+			if (this.stopped) return;
+			const first = reconcile(text, prev, opts);
 			if (first.changes.length === 0) {
 				this.remember(file.path, first.memo);
 				return;
 			}
 			await this.app.vault.process(file, (now) => {
+				if (this.stopped) return now;
 				const r = reconcile(now, prev, opts);
 				this.remember(file.path, r.memo);
 				return r.text;
@@ -219,6 +353,7 @@ export default class TaskDateLinksPlugin extends Plugin {
 			id: 'link-done-dates-vault',
 			name: 'Link the done dates in the whole vault',
 			callback: () => {
+				if (this.stopped) return;
 				if (!isPro()) {
 					new Notice('The back-fill of the whole vault is a pro feature. Sponsor on GitHub, then sign in from the plugin settings.');
 					return;
@@ -247,6 +382,10 @@ export default class TaskDateLinksPlugin extends Plugin {
 	 * A note that the folder rules or the property `task-date-links: false` keep out is never read and never changed.
 	 */
 	private async backfill(files: readonly TFile[], range: LineRange | undefined, title: string, editor?: Editor): Promise<void> {
+		await this.mutate(() => this.buildPreview(files, range, title, editor));
+	}
+
+	private async buildPreview(files: readonly TFile[], range: LineRange | undefined, title: string, editor?: Editor): Promise<void> {
 		const opts = this.linkOptions(null);
 		const preview: PreviewFile[] = [];
 		const inFolders = files.filter((f) => this.pathAllowed(f.path));
@@ -261,7 +400,9 @@ export default class TaskDateLinksPlugin extends Plugin {
 			return;
 		}
 		for (const f of allowed) {
+			if (this.stopped) return;
 			const text = editor && files.length === 1 ? editor.getValue() : await this.app.vault.cachedRead(f);
+			if (this.stopped) return;
 			const changes = linkText(text, opts, range).changes;
 			if (changes.length > 0) preview.push({ path: f.path, changes });
 		}
@@ -269,16 +410,45 @@ export default class TaskDateLinksPlugin extends Plugin {
 			new Notice(['No done dates to link.', skippedText(skipped)].filter((t) => t !== '').join(' '));
 			return;
 		}
+		if (this.exceedsUndoCapacity(preview)) return;
 		new PreviewModal(this.app, title, preview, () => this.applyPlan(allowed, preview, range, skipped), skipped).open();
 	}
 
+	/** The same capacity check applies to preview and the full plan re-read before any note is written. */
+	private exceedsUndoCapacity(plan: readonly PreviewFile[]): boolean {
+		if (plan.length <= UNDO_MAX_FILES && plan.reduce((n, f) => n + f.changes.length, 0) <= UNDO_MAX_EDITS) return false;
+		new Notice(`A back-fill accepts at most ${UNDO_MAX_FILES} notes and ${UNDO_MAX_EDITS} changed lines in total. Nothing was changed. Use smaller selections or folder rules.`);
+		return true;
+	}
+
 	private async applyPlan(files: readonly TFile[], preview: readonly PreviewFile[], range: LineRange | undefined, skippedBefore: number): Promise<void> {
+		await this.mutate(() => this.applyPlanNow(files, preview, range, skippedBefore));
+	}
+
+	private async applyPlanNow(files: readonly TFile[], preview: readonly PreviewFile[], range: LineRange | undefined, skippedBefore: number): Promise<void> {
 		const opts = this.linkOptions(null);
 		const planned = new Set(preview.map((p) => p.path));
+		// Re-read the whole plan before the first mutation: a later note may have grown since preview.
+		const checked = new Map<string, { before: string; after: string; changes: PreviewFile['changes'] }>();
+		for (const f of files) {
+			if (this.stopped) return;
+			if (!planned.has(f.path) || this.noteOptedOut(f)) continue;
+			try {
+				const before = await this.app.vault.read(f);
+				if (this.stopped) return;
+				const result = linkText(before, opts, range);
+				checked.set(f.path, { before, after: result.text, changes: result.changes });
+			} catch (e) {
+				// The write loop reports unavailable notes, while the rest still have a bounded plan.
+				console.warn('Task Date Links: could not read', f.path, e);
+			}
+		}
+		if (this.exceedsUndoCapacity(Array.from(checked, ([path, p]) => ({ path, changes: p.changes })).filter((p) => p.changes.length > 0))) return;
 		const done: UndoFile[] = [];
 		let skipped = skippedBefore;
 		let failed = 0;
 		for (const f of files) {
+			if (this.stopped) break;
 			if (!planned.has(f.path)) continue;
 			// The property can change while the preview is open, for example through a sync.
 			if (this.noteOptedOut(f)) {
@@ -288,14 +458,20 @@ export default class TaskDateLinksPlugin extends Plugin {
 			// A note that cannot be written (deleted or renamed while the preview is open) does not stop the other notes,
 			// and the undo still gets the notes that changed.
 			try {
-				const edits: UndoFile['edits'] = [];
+				const plan = checked.get(f.path);
+				if (!plan) throw new Error('The note could not be read before applying the back-fill.');
+				if (plan.changes.length === 0) continue;
+				let applied = false;
 				await this.app.vault.process(f, (now) => {
-					edits.length = 0;
-					const r = linkText(now, opts, range);
-					for (const c of r.changes) edits.push({ before: c.before, after: c.after });
-					return r.text;
+					// The host may retry this callback. Only the final accepted invocation counts.
+					applied = false;
+					if (this.stopped) return now;
+					// A later change must not add edits beyond the capacity checked for the full plan.
+					if (now !== plan.before) throw new Error('The note changed after the back-fill check. Preview it again.');
+					applied = true;
+					return plan.after;
 				});
-				if (edits.length > 0) done.push({ path: f.path, edits });
+				if (applied) done.push({ path: f.path, edits: plan.changes.map(({ before, after }) => ({ before, after })) });
 			} catch (e) {
 				failed++;
 				console.warn('Task Date Links: could not update', f.path, e);
@@ -304,7 +480,8 @@ export default class TaskDateLinksPlugin extends Plugin {
 		}
 		const n = done.reduce((sum, d) => sum + d.edits.length, 0);
 		this.settings.undo = n > 0 ? { at: Date.now(), files: done } : this.settings.undo;
-		await this.saveSettings();
+		await this.persistSettings();
+		if (this.stopped) return;
 		const linked = `Linked ${n} done ${n === 1 ? 'date' : 'dates'} in ${done.length} ${done.length === 1 ? 'note' : 'notes'}.`;
 		const notChanged = failed > 0 ? `${failed === 1 ? '1 note' : `${failed} notes`} could not be changed. The console shows why.` : '';
 		new Notice([linked, notChanged, skippedText(skipped), 'Run "Undo the last back-fill" to undo.'].filter((t) => t !== '').join(' '));
@@ -312,32 +489,62 @@ export default class TaskDateLinksPlugin extends Plugin {
 
 	/** Puts back the lines of the last back-fill. A line that you changed since is left alone. */
 	async undoLast(): Promise<void> {
+		await this.mutate(() => this.undoLastNow());
+	}
+
+	private async undoLastNow(): Promise<void> {
 		const batch = this.settings.undo;
 		if (!batch) return;
 		let restored = 0;
-		let skipped = 0;
-		for (const u of batch.files) {
+		let conflicts = 0;
+		let failed = 0;
+		let missing = 0;
+		const outstanding: UndoFile[] = [];
+		for (const [index, u] of batch.files.entries()) {
+			if (this.stopped) {
+				outstanding.push(...batch.files.slice(index));
+				break;
+			}
 			const file = this.app.vault.getFileByPath(u.path);
 			if (!file) {
-				skipped += u.edits.length;
+				missing += u.edits.length;
+				outstanding.push(u);
 				continue;
 			}
 			try {
+				let result: UndoResult | undefined;
 				await this.app.vault.process(file, (now) => {
-					const r = undoEdits(now, u.edits);
-					restored += r.restored;
-					skipped += r.skipped;
-					return r.text;
+					result = undefined;
+					if (this.stopped) return now;
+					result = undoEdits(now, u.edits);
+					return result.text;
 				});
+				// A callback result counts only after the write succeeds.
+				if (!result) {
+					if (!this.stopped) throw new Error('Undo did not read the note.');
+					outstanding.push(u);
+					continue;
+				}
+				restored += result.restored;
+				conflicts += result.skipped;
+				if (result.remaining.length > 0) outstanding.push({ path: u.path, edits: result.remaining });
 			} catch (e) {
-				skipped += u.edits.length;
+				failed += u.edits.length;
+				outstanding.push(u);
 				console.warn('Task Date Links: could not undo', u.path, e);
 			}
 			this.memos.delete(u.path);
 		}
-		this.settings.undo = null;
-		await this.saveSettings();
-		new Notice(skipped > 0 ? `Undid ${restored} lines. ${skipped} lines were changed since and stay as they are.` : `Undid ${restored} lines.`);
+		this.settings.undo = outstanding.length > 0 ? { at: batch.at, files: outstanding } : null;
+		await this.persistSettings();
+		if (this.stopped) return;
+		new Notice([
+			`Undid ${restored} lines.`,
+			conflicts > 0 ? `${conflicts} lines were changed since and stay as they are.` : '',
+			failed > 0 ? `${failed} lines could not be undone because of a read or write error. The console shows why.` : '',
+			missing > 0 ? `${missing} lines are in missing notes.` : '',
+			outstanding.length > 0 ? 'Recovery entries were kept. Restore missing notes or the exact linked lines, then run "Undo the last back-fill" again to retry only outstanding lines.' : '',
+		].filter((t) => t !== '').join(' '));
 	}
 }
 

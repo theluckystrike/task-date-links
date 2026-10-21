@@ -1,5 +1,17 @@
 # task-date-links
 
+## 1.2.0
+
+### Minor Changes
+
+- After a minor or major update, Task Date Links opens one What's new tab in the background. The tab and settings card suggest other NoteMods plugins and Zovo Chat and link to notemods.com for feedback ([privacy](https://notemods.com/privacy/)). The tab sends no data. Turn the tab off in Settings. Add the Send feedback command. The plugin makes no new network requests.
+
+## 1.1.3
+
+### Patch Changes
+
+- b0b08cb: Keep outstanding undo entries for retry and reload, bound back-fills to recovery capacity, reject overlapping mutations, stop later note writes after disable, and hand off recovery and ordered settings saves across immediate re-enable, retrying failed recovery saves before a fresh enable becomes ready.
+
 ## 1.1.2
 
 ### Patch Changes

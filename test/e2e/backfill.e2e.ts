@@ -52,6 +52,8 @@ describe(`${pluginId} back-fill`, function () {
 		);
 		await run('undo-backfill');
 		await waitFile(OLD, (t) => t === oldText, 'one undo did not restore the note');
+		// Note bytes settle before saveSettings finishes and shows the command's notice.
+		await browser.waitUntil(async () => (await notices()).some((n) => n.includes('Undid 4 lines')), { timeout: 5000, timeoutMsg: 'undo did not finish with its notice' });
 		expect((await notices()).join('|')).toContain('Undid 4 lines');
 	});
 
