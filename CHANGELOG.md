@@ -1,5 +1,11 @@
 # task-date-links
 
+## 1.2.2
+
+### Patch Changes
+
+- 1214428: Version 1.2.1 also changed the vault back-fill Pro notice for signed-in users. If your sponsorship check has not ended or must run again, the notice only asks you to select Refresh. If a check fails, the notice adds: If you already sponsor, select Refresh in the plugin settings.
+
 ## 1.2.1
 
 ### Patch Changes
