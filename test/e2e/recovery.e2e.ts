@@ -1,5 +1,9 @@
 import { browser, expect } from '@wdio/globals';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import ObsidianLauncher from 'obsidian-launcher';
 import { obsidianPage } from 'wdio-obsidian-service';
 import { pluginId, reloadPlugin } from './load';
 import { DIR, closeModals, notices, readFile, run, setSettings, writeFile } from './helpers';
@@ -8,6 +12,16 @@ const A = `${DIR}/Recovery A.md`;
 const B = `${DIR}/Recovery B.md`;
 const BEFORE = '- [x] Recovery ✅ 2026-09-12\r\n';
 const AFTER = '- [x] Recovery [[2026-09-12]] ✅ 2026-09-12\r\n';
+// The same download cache as wdio.conf.mts.
+const cacheDir = process.env.OBSIDIAN_CACHE ?? path.join(os.homedir(), '.cache', 'obsidian-launcher');
+const { minAppVersion } = JSON.parse(readFileSync('manifest.json', 'utf8')) as { minAppVersion: string };
+
+/** Compares two dotted version numbers: negative, 0 or positive. */
+function compareVersions(a: string, b: string): number {
+	const x = a.split('.').map(Number), y = b.split('.').map(Number);
+	for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+	return 0;
+}
 
 describe(`${pluginId} recovery`, function () {
 	afterEach(async function () {
@@ -28,7 +42,12 @@ describe(`${pluginId} recovery`, function () {
 				styles: await app.vault.adapter.read(`${app.vault.configDir}/plugins/${id}/styles.css`),
 			};
 		}, pluginId);
-		expect(['1.13.4', '1.14.4']).toContain(receipt.appVersion);
+		// The runtime must be the exact app that this capability asked for, at or above minAppVersion, and a public
+		// (non-Insiders) release. A fixed list of versions failed each time Obsidian shipped a new public version.
+		expect(receipt.appVersion).toBe(browser.getObsidianVersion());
+		expect(compareVersions(receipt.appVersion, minAppVersion)).toBeGreaterThanOrEqual(0);
+		const info = (await new ObsidianLauncher({ cacheDir }).getVersions()).find((v) => v.version === receipt.appVersion);
+		expect({ version: info?.version, isBeta: info?.isBeta }).toEqual({ version: receipt.appVersion, isBeta: false });
 		console.log('TASK_UNDO_APP_BINDING ' + JSON.stringify({
 			appVersion: receipt.appVersion, pluginVersion: receipt.pluginVersion,
 			mainSha256: createHash('sha256').update(receipt.main).digest('hex'),

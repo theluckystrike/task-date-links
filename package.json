@@ -1,7 +1,6 @@
 {
 	"name": "task-date-links",
-	"repository": {"type": "git", "url": "theluckystrike/task-date-links.git"},
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"private": true,
 	"description": "Adds a real daily note link to a task when you complete it, so backlinks show what you finished each day.",
 	"main": "main.js",

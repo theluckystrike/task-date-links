@@ -60,7 +60,8 @@ export async function waitFile(path: string, ok: (text: string) => boolean, msg:
 			last = await readFile(path);
 			return ok(last);
 		},
-		{ timeout, interval: 250, timeoutMsg: `${msg}; the note holds ${JSON.stringify(last)}` },
+		// A function: a template string here is built once, before the first read, and always showed "".
+		{ timeout, interval: 250, timeoutMsg: () => `${msg}; the note holds ${JSON.stringify(last)}` },
 	);
 	return last;
 }
@@ -144,15 +145,34 @@ export async function notices(): Promise<string[]> {
 	return browser.execute(() => Array.from(document.querySelectorAll('.notice')).map((n) => n.textContent ?? ''));
 }
 
-/** Clicks the button of the preview window by its label. */
+/**
+ * Waits until the plugin has no operation and no pending automatic update. A note write of the test (for example the
+ * restore in afterEach) or the first index of the vault starts an automatic update 250 ms later. A back-fill, an apply
+ * or an undo that starts in that time gets the notice "Task date links is busy" and does nothing, as designed.
+ */
+export async function idle(): Promise<void> {
+	const check = () =>
+		browser.executeObsidian(({ app }, id) => {
+			const p = (app as unknown as { plugins: { plugins: Record<string, { mutationBusy?: boolean; timers?: Map<string, number> }> } }).plugins.plugins[id];
+			return p !== undefined && !p.mutationBusy && (p.timers?.size ?? 0) === 0;
+		}, pluginId);
+	for (let i = 0; i < 2; i++) {
+		await browser.waitUntil(check, { timeout: 15000, interval: 100, timeoutMsg: 'Task Date Links stayed busy' });
+		if (i === 0) await browser.pause(300);
+	}
+}
+
+/** Clicks the button of the preview window by its label, when the plugin is idle. */
 export async function clickPreview(label: string): Promise<void> {
 	const b = await browser.$(`//div[contains(@class,"task-date-links-preview")]//button[normalize-space()="${label}"]`);
 	await b.waitForDisplayed({ timeout: 8000 });
+	await idle();
 	await b.click();
 }
 
-/** Runs a command of this plugin. */
+/** Runs a command of this plugin, when the plugin is idle. */
 export async function run(command: string): Promise<void> {
+	await idle();
 	await browser.executeObsidianCommand(`${pluginId}:${command}`);
 }
 

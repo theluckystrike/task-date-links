@@ -1,11 +1,9 @@
 {
 	"id": "task-date-links",
 	"name": "Task Date Links",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"changes": [
-		"New Send feedback command. It opens a page where you can report a problem or suggest an idea.",
-		"Undo entries that could not finish are kept and retried, even after a reload.",
-		"A back-fill of over 5,000 notes or 20,000 changed lines now stops before it writes, so its undo can finish."
+		"The Pro notice for the vault back-fill now has a Sponsor on GitHub button."
 	],
 	"tip": "Add the property task-date-links: false to a note to keep date links out of it.",
 	"thanks": "Hi, I am Michael, a solo developer in Poland. Task Date Links is one of over 100 small plugins that I make. Thank you for using it to keep your tasks in order.",

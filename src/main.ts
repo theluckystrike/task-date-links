@@ -1,7 +1,7 @@
 import { Notice, Plugin, normalizePath, type CachedMetadata, type Editor, type TFile } from 'obsidian';
 import type { SponsorsManager } from './license/index';
 import { createGitHubSponsors } from './license/github-obsidian';
-import { SPONSORS, bindPro, isPro, resetPro } from './pro';
+import { SPONSORS, bindPro, isPro, resetPro, proNotice } from './pro';
 import { DEFAULT_SETTINGS, TaskDateLinksSettingTab, normalizeSettings, type TaskDateLinksSettings } from './settings';
 import { linkText, type Kind, type LineRange, type LinkOptions } from './links';
 import { FALLBACK_FORMAT, buildLinksFor, folderAllowed, optedOut, recentWindow, splitFolders, type LinkConfig } from './options';
@@ -355,7 +355,7 @@ export default class TaskDateLinksPlugin extends Plugin {
 			callback: () => {
 				if (this.stopped) return;
 				if (!isPro()) {
-					new Notice('The back-fill of the whole vault is a pro feature. Sponsor on GitHub, then sign in from the plugin settings.');
+					proNotice('The back-fill of the whole vault is a pro feature.');
 					return;
 				}
 				const files = this.app.vault.getMarkdownFiles().filter((f) => this.pathAllowed(f.path) && this.hasDone(f));
