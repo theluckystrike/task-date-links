@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from 'obsidian-test-mocks/obsidian';
 import TaskDateLinksPlugin from '../src/main';
-import { SPONSORS, bindPro, isPro, onProChange, resetPro } from '../src/pro';
+import { PRO_VAULT_LEAD, SPONSORS, bindPro, isPro, onProChange, resetPro } from '../src/pro';
 import { DEFAULT_SETTINGS, normalizeSettings } from '../src/settings';
 import manifest from '../manifest.json';
 
@@ -117,5 +117,11 @@ describe('pro facade', () => {
 		expect(SPONSORS.minMonthlyUsd).toBe(5);
 		expect(SPONSORS.oneTimeUsd).toBe(15);
 		expect(SPONSORS.scope).toBe('read:user');
+	});
+});
+
+describe('Pro notice text', () => {
+	it('the lead of the vault back-fill notice writes Pro with a capital P', () => {
+		expect(PRO_VAULT_LEAD).toBe('The back-fill of the whole vault is a Pro feature.');
 	});
 });

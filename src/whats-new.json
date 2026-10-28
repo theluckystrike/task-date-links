@@ -1,11 +1,9 @@
 {
 	"id": "task-date-links",
 	"name": "Task Date Links",
-	"version": "1.2.2",
+	"version": "1.2.3",
 	"changes": [
-		"Version 1.2.1 also changed the vault back-fill Pro notice for signed-in users.",
-		"If your sponsorship check has not ended or must run again, the notice only asks you to select Refresh.",
-		"If a check fails, the notice adds: If you already sponsor, select Refresh in the plugin settings."
+		"The Pro notice for the back-fill of the whole vault now writes Pro with a capital P."
 	],
 	"tip": "Add the property task-date-links: false to a note to keep date links out of it.",
 	"thanks": "Hi, I am Michael, a solo developer in Poland. Task Date Links is one of over 100 small plugins that I make. Thank you for using it to keep your tasks in order.",

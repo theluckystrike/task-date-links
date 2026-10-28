@@ -1,5 +1,11 @@
 # task-date-links
 
+## 1.2.3
+
+### Patch Changes
+
+- 59588f3: The Pro notice for the back-fill of the whole vault now writes Pro with a capital P.
+
 ## 1.2.2
 
 ### Patch Changes

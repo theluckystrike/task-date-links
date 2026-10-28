@@ -60,3 +60,6 @@ export function resetPro(): void {
 export function proNotice(lead: string): void {
 	showProNotice(manager, lead);
 }
+
+/** Lead of the Pro notice for the back-fill of the whole vault. showProNotice adds the next step for this user. */
+export const PRO_VAULT_LEAD = 'The back-fill of the whole vault is a Pro feature.';

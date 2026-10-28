@@ -103,12 +103,12 @@ describe(`${pluginId} back-fill`, function () {
 
 	it('the whole vault needs Pro; with Pro it previews both notes, applies, and one undo restores both', async function () {
 		await run('link-done-dates-vault');
-		await browser.waitUntil(async () => (await notices()).some((n) => n.includes('pro feature')), { timeout: 5000, timeoutMsg: 'no Pro notice' });
+		await browser.waitUntil(async () => (await notices()).some((n) => n.includes('Pro feature')), { timeout: 5000, timeoutMsg: 'no Pro notice' });
 		// A free user gets the shared notice: the lead, the next step and a Sponsor on GitHub button.
 		const shown = await browser.execute(() =>
 			Array.from(document.querySelectorAll('.notice')).map((n) => ({ text: n.textContent ?? '', buttons: Array.from(n.querySelectorAll('button.pf-pro-notice-sponsor')).map((b) => b.textContent) })),
 		);
-		const pro = shown.filter((n) => n.text.includes('The back-fill of the whole vault is a pro feature. Sponsor on GitHub, then sign in from the plugin settings.'));
+		const pro = shown.filter((n) => n.text.includes('The back-fill of the whole vault is a Pro feature. Sponsor on GitHub, then sign in from the plugin settings.'));
 		expect(pro.map((n) => n.buttons)).toEqual([['Sponsor on GitHub']]);
 		// The notice fades in; the button must become visible.
 		await browser.$('.notice button.pf-pro-notice-sponsor').waitForDisplayed({ timeout: 5000 });
