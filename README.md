@@ -113,7 +113,6 @@ To get Pro:
 2. In Obsidian, open the settings of Task Date Links and select "Sign in with GitHub".
 3. Paste the code the plugin shows at github.com/login/device and approve.
 
-If you sponsor after you sign in, select Refresh.
 
 ## Settings
 
@@ -156,6 +155,8 @@ It is not desktop only and uses no Node.js API. The tests run on desktop only.
 ## Payment, account and network
 
 The core features are free. Pro features need a GitHub Sponsors sponsorship of theluckystrike: $5 a month or more, or $15 once. A total payment of $15 meets the payment requirement for Pro without further payment. Sign-in and the checks below still apply. Your notes stay readable and editable with or without Pro.
+
+[One payment turns on Pro in every NoteMods plugin](https://notemods.com/pro/).
 
 GitHub handles the payment. Sponsor at https://github.com/sponsors/theluckystrike?frequency=one-time&metadata_source=task-date-links. You need no account for the free features. Pro needs the GitHub account that sponsors.
 
