@@ -13,8 +13,42 @@ const body = (n: number) => Array.from({ length: n }, (_, i) => before(i)).join(
 
 afterEach(() => vi.restoreAllMocks());
 
+type LinkLookup = { getFirstLinkpathDest(linkpath: string, sourcePath: string): TFile | null };
+
+/**
+ * The mock metadata cache (obsidian-test-mocks 7.2.0, getFirstLinkpathDest) resolves each link of each written note with
+ * up to 3 scans of all vault files. A back-fill of 5,000 notes writes 5,000 links that resolve to no file, so the test
+ * harness made up to 75 million file visits. The test took 11.6 s on the agent Mac (2026-11-04, lowest of 3 runs; 82 %
+ * of its CPU profile in getFirstLinkpathDest) and more than its 120 s timeout on the CI runner (run 41601824600).
+ * The plugin does not resolve links. This memo keeps the answer of the mock for each link path, so each answer is the
+ * mock's own. Each create, copy, delete, trash or rename clears the memo before the vault changes. The test 'the link
+ * memo gives the answers of the mock' checks that.
+ */
+function memoLinkTargets(app: App): { calls: () => number; direct: LinkLookup['getFirstLinkpathDest'] } {
+	const cache = app.metadataCache as unknown as LinkLookup;
+	const resolve = cache.getFirstLinkpathDest.bind(app.metadataCache);
+	let memo = new Map<string, TFile | null>();
+	let calls = 0;
+	vi.spyOn(cache, 'getFirstLinkpathDest').mockImplementation((linkpath, sourcePath) => {
+		calls++;
+		// The mock ignores the source path, so the link path is the whole key.
+		if (!memo.has(linkpath)) memo.set(linkpath, resolve(linkpath, sourcePath));
+		return memo.get(linkpath)!;
+	});
+	const vault = app.vault as unknown as Record<string, (...args: unknown[]) => unknown>;
+	for (const name of ['create', 'createBinary', 'createFolder', 'copy', 'delete', 'trash', 'rename']) {
+		const original = vault[name]!.bind(app.vault);
+		vi.spyOn(vault, name).mockImplementation((...args: unknown[]) => {
+			memo = new Map();
+			return original(...args);
+		});
+	}
+	return { calls: () => calls, direct: resolve };
+}
+
 async function rig(files: Record<string, string>) {
 	const app = App.createConfigured__({ files });
+	const links = memoLinkTargets(app);
 	const plugin = new TaskDateLinksPlugin(app as never, manifest as never);
 	plugin.settings = { ...DEFAULT_SETTINGS, auto: false };
 	// Persist a JSON copy, then load through the real settings normalizer.
@@ -34,7 +68,7 @@ async function rig(files: Record<string, string>) {
 	const apply = async () => {
 		if (modal) await (modal as unknown as { onApply(): Promise<void> }).onApply();
 	};
-	return { app, plugin, notices, read, plan, apply };
+	return { app, plugin, notices, read, plan, apply, links };
 }
 
 function batch(paths: string[], count = 1): UndoBatch {
@@ -96,6 +130,29 @@ describe('undo recovery after a write failure', () => {
 });
 
 describe('persisted back-fill capacity', () => {
+	it('the link memo gives the answers of the mock, also after a create, rename and delete', async () => {
+		const r = await rig({ 'X.md': '', 'F/x.md': '', 'F/Y.md': '[[X]]', '2026-09-12.md': '' });
+		const memo = (r.app.metadataCache as unknown as LinkLookup).getFirstLinkpathDest.bind(r.app.metadataCache);
+		const same = () => {
+			for (const key of ['X', 'x', 'F/x', 'Y', 'y.md', 'Z', '2026-09-12', 'N0', 'none']) expect(memo(key, 'Z.md'), key).toBe(r.links.direct(key, 'Z.md'));
+		};
+		same();
+		await r.app.vault.create('Z.md', '[[Y]] [[z]] [[N0]]');
+		same();
+		expect(r.app.metadataCache.resolvedLinks['Z.md']).toEqual({ 'F/Y.md': 1, 'Z.md': 1 });
+		expect(r.app.metadataCache.unresolvedLinks['Z.md']).toEqual({ N0: 1 });
+		await r.app.vault.rename(r.app.vault.getFileByPath('F/Y.md')!, 'N0.md');
+		same();
+		await r.app.vault.delete(r.app.vault.getFileByPath('2026-09-12.md')!);
+		same();
+		const callsBefore = r.links.calls();
+		await r.app.vault.modify(r.app.vault.getFileByPath('Z.md')!, '[[2026-09-12]] [[N0]] [[Y]]');
+		// The parse of the mock goes through the memo.
+		expect(r.links.calls()).toBe(callsBefore + 3);
+		expect(r.app.metadataCache.resolvedLinks['Z.md']).toEqual({ 'N0.md': 1 });
+		expect(r.app.metadataCache.unresolvedLinks['Z.md']).toEqual({ '2026-09-12': 1, Y: 1 });
+	});
+
 	it.each([['files', 5000, 1], ['aggregate edits', 2, 10000]] as const)('accepts the exact %s boundary and reloads every accepted edit', async (_label, files, edits) => {
 		const source = body(edits);
 		const r = await rig(Object.fromEntries(Array.from({ length: files }, (_, i) => [`N${i}.md`, source])));

@@ -1,9 +1,9 @@
 {
 	"id": "task-date-links",
 	"name": "Task Date Links",
-	"version": "1.2.3",
+	"version": "1.2.4",
 	"changes": [
-		"The Pro notice for the back-fill of the whole vault now writes Pro with a capital P."
+		"The Pro notice of Task Date Links now says that one payment turns on Pro in every NoteMods plugin."
 	],
 	"tip": "Add the property task-date-links: false to a note to keep date links out of it.",
 	"thanks": "Hi, I am Michael, a solo developer in Poland. Task Date Links is one of over 100 small plugins that I make. Thank you for using it to keep your tasks in order.",
