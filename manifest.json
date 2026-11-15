@@ -1,7 +1,7 @@
 {
 	"id": "task-date-links",
 	"name": "Task Date Links",
-	"version": "1.2.4",
+	"version": "1.2.5",
 	"minAppVersion": "1.13.4",
 	"description": "Add a daily note link to each completed task, using its completion date from Tasks. Backlinks then show the done tasks of each day.",
 	"author": "Michael Lip",

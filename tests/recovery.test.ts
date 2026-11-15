@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from '../src/settings';
 import type { UndoBatch } from '../src/undo';
 import manifest from '../manifest.json';
 import { todayIso } from '../src/moment';
+import { budget } from './time-scale';
 
 const before = (n: number) => `- [x] Task ${n} ✅ 2026-09-12`;
 const after = (n: number) => `- [x] Task ${n} [[2026-09-12]] ✅ 2026-09-12`;
@@ -164,7 +165,7 @@ describe('persisted back-fill capacity', () => {
 		await r.plugin.undoLast();
 		for (const file of r.app.vault.getMarkdownFiles()) expect(await r.read(file.path)).toBe(source);
 		expect(r.plugin.settings.undo).toBeNull();
-	}, 120000);
+	}, budget(120000));
 
 	it.each([['files', 5001, 1], ['aggregate edits', 2, 10001], ['one file edits', 1, 20001]] as const)('refuses above the %s boundary before any write and preserves the previous undo', async (_label, files, edits) => {
 		const r = await rig(Object.fromEntries(Array.from({ length: files }, (_, i) => [`N${i}.md`, body(edits)])));

@@ -1,5 +1,11 @@
 # task-date-links
 
+## 1.2.5
+
+### Patch Changes
+
+- The Sponsor button now opens the NoteMods one-time tier.
+
 ## 1.2.4
 
 ### Patch Changes
